@@ -1,4 +1,9 @@
-package vaultkv
+// vaultLib
+// Written by J.F.Gratton <jean-francois@famillegratton.net>
+// Original filename: reader/read.go
+// Original timestamp: 2026/04/23 14:34:20
+
+package reader
 
 import (
 	"encoding/json"
@@ -10,59 +15,10 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-type ReadOptions struct {
-	Version int
-	Field   string
-}
-
-type Secret struct {
-	MountPath        string                 `json:"mountPath"`
-	Path             string                 `json:"path"`
-	RequestedVersion int                    `json:"requestedVersion,omitempty"`
-	Version          int                    `json:"version,omitempty"`
-	Data             map[string]interface{} `json:"data"`
-}
-
-type Client struct {
-	cfg    Config
-	client *api.Client
-}
-
-func NewClient(cfg Config) (*Client, *Error) {
-	resolved, cerr := cfg.Resolved()
-	if cerr != nil {
-		return nil, cerr
-	}
-
-	apiClient, err := api.NewClient(&api.Config{Address: resolved.Address})
-	if err != nil {
-		return nil, newError(ErrVaultInit, "Vault client creation failed", err.Error(), err)
-	}
-	apiClient.SetToken(resolved.Token)
-
-	return &Client{cfg: resolved, client: apiClient}, nil
-}
-
-func ReadSecret(cfg Config, secretPath string, opts ReadOptions) (*Secret, *Error) {
-	client, cerr := NewClient(cfg)
-	if cerr != nil {
-		return nil, cerr
-	}
-	return client.ReadSecret(secretPath, opts)
-}
-
-func ReadSecretField(cfg Config, secretPath, field string, version int) (interface{}, *Error) {
-	client, cerr := NewClient(cfg)
-	if cerr != nil {
-		return nil, cerr
-	}
-	return client.ReadSecretField(secretPath, field, version)
-}
-
-func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Error) {
+func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, error) {
 	path := strings.Trim(secretPath, "/")
 	if path == "" {
-		return nil, newError(ErrInvalidPath, "Invalid secret path", "secret path cannot be empty", nil)
+		return nil, fmt.Errorf("invalid secret path: secret path cannot be empty")
 	}
 
 	dataPath := fmt.Sprintf("%s/data/%s", c.cfg.MountPath, path)
@@ -73,7 +29,7 @@ func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Erro
 		return nil, classifyReadError(err, true)
 	}
 	if meta == nil {
-		return nil, newError(ErrInvalidPath, "Secret path does not exist", fmt.Sprintf("metadata path %s returned nil", metaPath), nil)
+		return nil, fmt.Errorf("secret path does not exist: metadata path %s returned nil", metaPath)
 	}
 
 	var secret *api.Secret
@@ -93,7 +49,7 @@ func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Erro
 				return nil, ferr
 			}
 			if fallbackVersion == 0 {
-				return nil, newError(ErrReadSecret, "ReadSecret failed", "all the secret's versions were destroyed", nil)
+				return nil, fmt.Errorf("read secret failed: all secret versions were destroyed")
 			}
 			secret, err = c.client.Logical().ReadWithData(dataPath, map[string][]string{
 				"version": {strconv.Itoa(fallbackVersion)},
@@ -106,12 +62,12 @@ func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Erro
 		return nil, classifyReadError(err, false)
 	}
 	if secret == nil {
-		return nil, newError(ErrReadSecret, "ReadSecret failed", "secret read returned nil", nil)
+		return nil, fmt.Errorf("read secret failed: secret read returned nil")
 	}
 
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
-		return nil, newError(ErrExtractData, "ReadSecret failed", "secret format is invalid", nil)
+		return nil, fmt.Errorf("read secret failed: secret format is invalid")
 	}
 
 	if actualVersion == 0 {
@@ -120,7 +76,7 @@ func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Erro
 
 	if opts.Field != "" {
 		if _, found := data[opts.Field]; !found {
-			return nil, newError(ErrFieldNotFound, "ReadSecret error", fmt.Sprintf("field %s not found", opts.Field), nil)
+			return nil, fmt.Errorf("read secret error: field %s not found", opts.Field)
 		}
 	}
 
@@ -133,26 +89,27 @@ func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, *Erro
 	}, nil
 }
 
-func (c *Client) ReadSecretField(secretPath, field string, version int) (interface{}, *Error) {
-	secret, cerr := c.ReadSecret(secretPath, ReadOptions{Version: version, Field: field})
-	if cerr != nil {
-		return nil, cerr
+func (c *Client) ReadSecretField(secretPath, field string, version int) (interface{}, error) {
+	secret, err := c.ReadSecret(secretPath, ReadOptions{Version: version, Field: field})
+	if err != nil {
+		return nil, err
 	}
+
 	val, ok := secret.Data[field]
 	if !ok {
-		return nil, newError(ErrFieldNotFound, "ReadSecret error", fmt.Sprintf("field %s not found", field), nil)
+		return nil, fmt.Errorf("read secret error: field %s not found", field)
 	}
 	return val, nil
 }
 
-func findLatestAvailableVersion(meta *api.Secret) (int, *Error) {
+func findLatestAvailableVersion(meta *api.Secret) (int, error) {
 	if meta == nil {
-		return 0, newError(ErrReadSecret, "Unable to fetch metadata", "metadata response is nil", nil)
+		return 0, fmt.Errorf("unable to fetch metadata: metadata response is nil")
 	}
 
 	rawVersions, ok := meta.Data["versions"].(map[string]interface{})
 	if !ok {
-		return 0, newError(ErrReadSecret, "Version metadata not found", "metadata did not include a versions map", nil)
+		return 0, fmt.Errorf("version metadata not found: metadata did not include a versions map")
 	}
 
 	available := make([]int, 0, len(rawVersions))
@@ -213,23 +170,24 @@ func extractVersion(secret *api.Secret) int {
 	return 0
 }
 
-func classifyReadError(err error, metadataPhase bool) *Error {
+func classifyReadError(err error, metadataPhase bool) error {
 	if err == nil {
 		return nil
 	}
+
 	msg := err.Error()
 
 	switch {
 	case strings.Contains(msg, "connection refused"), strings.Contains(msg, "no such host"):
-		return newError(ErrVaultUnavailable, "Vault service unavailable", msg, err)
+		return fmt.Errorf("vault service unavailable: %w", err)
 	case strings.Contains(msg, "permission denied"), strings.Contains(msg, "unauthorized"):
-		return newError(ErrVaultInvalidAuth, "Invalid Vault token or unauthorized", msg, err)
+		return fmt.Errorf("invalid Vault token or unauthorized: %w", err)
 	case strings.Contains(msg, "Vault is sealed"), strings.Contains(msg, "server is sealed"):
-		return newError(ErrVaultSealed, "Vault is sealed", msg, err)
+		return fmt.Errorf("vault is sealed: %w", err)
 	default:
 		if metadataPhase {
-			return newError(ErrInvalidPath, "Secret path does not exist or metadata read failed", msg, err)
+			return fmt.Errorf("secret path does not exist or metadata read failed: %w", err)
 		}
-		return newError(ErrReadSecret, "ReadSecret failed", msg, err)
+		return fmt.Errorf("read secret failed: %w", err)
 	}
 }
