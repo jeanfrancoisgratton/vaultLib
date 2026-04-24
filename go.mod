@@ -1,4 +1,4 @@
-module vaultreader
+module github.com/jeanfrancoisgratton/vaultLib
 
 go 1.26.2
 

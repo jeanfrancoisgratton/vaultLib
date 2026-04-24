@@ -4,18 +4,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-// Resolved returns a copy of Config with token and address resolved from the
-// environment when they were not set explicitly.
+// Resolved returns a copy of Config with connection fields resolved from
+// environment variables and standard Vault client files when they were not set
+// explicitly.
 func (c Config) Resolved() (Config, error) {
-	resolved := c
+	resolved := c.trimmed()
 
-	if strings.TrimSpace(resolved.Token) == "" {
+	if resolved.Token == "" {
 		resolved.Token = strings.TrimSpace(os.Getenv("VAULT_TOKEN"))
 	}
-	if strings.TrimSpace(resolved.Token) == "" {
+	if resolved.Token == "" {
 		homeDir, err := os.UserHomeDir()
 		if err == nil {
 			data, err := os.ReadFile(filepath.Join(homeDir, ".vault-token"))
@@ -24,17 +26,74 @@ func (c Config) Resolved() (Config, error) {
 			}
 		}
 	}
-	if strings.TrimSpace(resolved.Token) == "" {
+	if resolved.Token == "" {
 		return Config{}, fmt.Errorf("vault token is missing: neither Config.Token, VAULT_TOKEN, nor ~/.vault-token provided a usable token")
 	}
 
-	if strings.TrimSpace(resolved.Address) == "" {
+	if resolved.Address == "" {
 		resolved.Address = strings.TrimSpace(os.Getenv("VAULT_ADDR"))
 	}
-	if strings.TrimSpace(resolved.Address) == "" {
+	if resolved.Address == "" {
 		return Config{}, fmt.Errorf("vault address is missing: neither Config.Address nor VAULT_ADDR provided a usable address")
 	}
 
-	resolved.MountPath = strings.Trim(resolved.MountPath, "/")
+	if resolved.Namespace == "" {
+		resolved.Namespace = strings.TrimSpace(os.Getenv("VAULT_NAMESPACE"))
+	}
+	if resolved.CACertPath == "" {
+		resolved.CACertPath = strings.TrimSpace(os.Getenv("VAULT_CACERT"))
+	}
+	if resolved.CAPath == "" {
+		resolved.CAPath = strings.TrimSpace(os.Getenv("VAULT_CAPATH"))
+	}
+	if resolved.ClientCertPath == "" {
+		resolved.ClientCertPath = strings.TrimSpace(os.Getenv("VAULT_CLIENT_CERT"))
+	}
+	if resolved.ClientKeyPath == "" {
+		resolved.ClientKeyPath = strings.TrimSpace(os.Getenv("VAULT_CLIENT_KEY"))
+	}
+	if resolved.TLSServerName == "" {
+		resolved.TLSServerName = strings.TrimSpace(os.Getenv("VAULT_TLS_SERVER_NAME"))
+	}
+	if !resolved.TLSSkipVerify {
+		resolved.TLSSkipVerify = envBool("VAULT_SKIP_VERIFY")
+	}
+
+	if resolved.MountPath == "" {
+		return Config{}, fmt.Errorf("kv mount path is missing: Config.MountPath must point to a KV v2 mount")
+	}
+
 	return resolved, nil
+}
+
+func (c Config) trimmed() Config {
+	c.Address = strings.TrimSpace(c.Address)
+	c.Token = strings.TrimSpace(c.Token)
+	c.MountPath = strings.Trim(strings.TrimSpace(c.MountPath), "/")
+	c.Namespace = strings.Trim(strings.TrimSpace(c.Namespace), "/")
+	c.CACertPath = strings.TrimSpace(c.CACertPath)
+	c.CAPath = strings.TrimSpace(c.CAPath)
+	c.ClientCertPath = strings.TrimSpace(c.ClientCertPath)
+	c.ClientKeyPath = strings.TrimSpace(c.ClientKeyPath)
+	c.TLSServerName = strings.TrimSpace(c.TLSServerName)
+	return c
+}
+
+func envBool(name string) bool {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return false
+	}
+
+	parsed, err := strconv.ParseBool(raw)
+	if err == nil {
+		return parsed
+	}
+
+	switch strings.ToLower(raw) {
+	case "1", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }

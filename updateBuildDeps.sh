@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-grep -E "gotest|golang|github" go.mod|awk '{print "go get "$1}'|sh
+go get -u github.com/hashicorp/vault/api
+go mod tidy
