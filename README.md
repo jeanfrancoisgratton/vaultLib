@@ -11,6 +11,9 @@ A lightweight HashiCorp Vault KV v2 reader library for Go applications.
 This library intentionally keeps a small API surface. It is currently focused on
 read-only access to KV v2 secrets, not on administering Vault itself.
 
+More capabilities (write secrets, Vault administration, etc) will be added later.
+For now the read capabilities were the more pressing needs.
+
 ## Install
 
 ```bash
@@ -29,17 +32,17 @@ cfg := reader.Config{
 
 Supported environment fallbacks:
 
-| Config field | Environment fallback |
-| --- | --- |
-| `Token` | `VAULT_TOKEN`, then `~/.vault-token` |
-| `Address` | `VAULT_ADDR` |
-| `Namespace` | `VAULT_NAMESPACE` |
-| `CACertPath` | `VAULT_CACERT` |
-| `CAPath` | `VAULT_CAPATH` |
-| `ClientCertPath` | `VAULT_CLIENT_CERT` |
-| `ClientKeyPath` | `VAULT_CLIENT_KEY` |
-| `TLSServerName` | `VAULT_TLS_SERVER_NAME` |
-| `TLSSkipVerify` | `VAULT_SKIP_VERIFY` |
+| Config field     | Environment fallback                  |
+|------------------|---------------------------------------|
+| `Token`          | `VAULT_TOKEN`, then `~/.vault-token`  |
+| `Address`        | `VAULT_ADDR`                          |
+| `Namespace`      | `VAULT_NAMESPACE`                     |
+| `CACertPath`     | `VAULT_CACERT`                        |
+| `CAPath`         | `VAULT_CAPATH`                        |
+| `ClientCertPath` | `VAULT_CLIENT_CERT`                   |
+| `ClientKeyPath`  | `VAULT_CLIENT_KEY`                    |
+| `TLSServerName`  | `VAULT_TLS_SERVER_NAME`               |
+| `TLSSkipVerify`  | `VAULT_SKIP_VERIFY`                   |
 
 ## Read a whole secret
 
