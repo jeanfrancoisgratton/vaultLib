@@ -215,8 +215,7 @@ func classifyReadError(err error, metadataPhase bool) error {
 		return nil
 	}
 
-	var responseErr *api.ResponseError
-	if errors.As(err, &responseErr) {
+	if responseErr, ok := errors.AsType[*api.ResponseError](err); ok {
 		switch responseErr.StatusCode {
 		case http.StatusBadRequest:
 			return fmt.Errorf("vault rejected the KV v2 read request: %w", err)
