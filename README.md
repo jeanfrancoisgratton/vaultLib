@@ -6,11 +6,38 @@
 
 ---
 
-A lightweight HashiCorp Vault KV secret engine library for Go applications.
+A lightweight HashiCorp Vault library for Go applications, covering KV secret
+engine reads and writes as well as basic Vault administration (seal/unseal).
 
-This library intentionally keeps a small API surface. It currently covers
-read-only and read-write access to KV secrets. Vault administration is out of
-scope.
+## Table of Contents
+
+- [Install](#install)
+- [Package layout](#package-layout)
+- [Configuration](#configuration)
+  - [kv.Config](#kvconfig)
+  - [admin.AdminConfig](#adminadminconfig)
+- [kv subpackage](#kv-subpackage)
+  - [Read a whole secret](#read-a-whole-secret)
+  - [Read one field](#read-one-field)
+  - [Optional fallback behavior](#optional-fallback-behavior)
+  - [Write a full secret](#write-a-full-secret)
+  - [Check-And-Set (KV v2)](#check-and-set-kv-v2)
+  - [Write a single field](#write-a-single-field)
+  - [Delete a single field](#delete-a-single-field)
+  - [Delete a whole secret](#delete-a-whole-secret)
+  - [Destroy a specific version (KV v2)](#destroy-a-specific-version-kv-v2)
+  - [Update an existing field](#update-an-existing-field)
+  - [KV engine version](#kv-engine-version)
+  - [Consistency note](#consistency-note)
+  - [Required Vault policies](#required-vault-policies)
+  - [Error handling](#error-handling)
+- [admin subpackage](#admin-subpackage)
+  - [Unseal](#unseal)
+  - [Seal](#seal)
+  - [Required Vault policies](#required-vault-policies-1)
+  - [Error handling](#error-handling-1)
+
+---
 
 ## Install
 
@@ -18,41 +45,91 @@ scope.
 go get github.com/jeanfrancoisgratton/vaultLib
 ```
 
-## Configuration
+---
 
-The `Config` struct is shared across all subpackages. It is defined once in
-`shared` and re-exported by each subpackage, so you only need to import the
-subpackage you use.
+## Package layout
 
-```go
-cfg := writer.Config{
-    Address:   "https://vault.example.net:8200",
-    Token:     "",           // empty: use VAULT_TOKEN, then ~/.vault-token
-    MountPath: "containers", // KV mount name, not containers/data
-}
+```
+vaultLib/
+├── shared/   — shared Config type and environment resolution (internal use)
+├── kv/       — KV secret engine: read, write, delete, destroy
+└── admin/    — Vault administration: seal, unseal
 ```
 
-Supported environment fallbacks:
-
-| Config field     | Environment fallback                  |
-|------------------|---------------------------------------|
-| `Token`          | `VAULT_TOKEN`, then `~/.vault-token`  |
-| `Address`        | `VAULT_ADDR`                          |
-| `Namespace`      | `VAULT_NAMESPACE`                     |
-| `CACertPath`     | `VAULT_CACERT`                        |
-| `CAPath`         | `VAULT_CAPATH`                        |
-| `ClientCertPath` | `VAULT_CLIENT_CERT`                   |
-| `ClientKeyPath`  | `VAULT_CLIENT_KEY`                    |
-| `TLSServerName`  | `VAULT_TLS_SERVER_NAME`               |
-| `TLSSkipVerify`  | `VAULT_SKIP_VERIFY`                   |
+`shared` is not meant to be imported directly. Both `kv` and `admin` re-export
+the configuration type(s) they need, so you only import the subpackage you use.
 
 ---
 
-## Reader subpackage
+## Configuration
+
+### kv.Config
+
+`kv.Config` is an alias for `shared.Config`. It holds the connection settings
+and the KV mount path.
+
+```go
+cfg := kv.Config{
+    Address:   "https://vault.example.net:8200",
+    Token:     "",           // empty: resolved from VAULT_TOKEN, then ~/.vault-token
+    MountPath: "containers", // KV mount name, not a full API path
+}
+```
+
+`MountPath` must be the KV engine mount name only. If a secret lives at
+`containers/data/monitoring_apps`, the mount path is `containers`.
+
+Supported environment fallbacks:
+
+| Config field     | Environment fallback                 |
+|------------------|--------------------------------------|
+| `Token`          | `VAULT_TOKEN`, then `~/.vault-token` |
+| `Address`        | `VAULT_ADDR`                         |
+| `Namespace`      | `VAULT_NAMESPACE`                    |
+| `CACertPath`     | `VAULT_CACERT`                       |
+| `CAPath`         | `VAULT_CAPATH`                       |
+| `ClientCertPath` | `VAULT_CLIENT_CERT`                  |
+| `ClientKeyPath`  | `VAULT_CLIENT_KEY`                   |
+| `TLSServerName`  | `VAULT_TLS_SERVER_NAME`              |
+| `TLSSkipVerify`  | `VAULT_SKIP_VERIFY`                  |
+
+### admin.AdminConfig
+
+`admin.AdminConfig` is a separate type scoped to system-level operations. It
+does not have a `MountPath` field since the admin API is not mount-specific.
+A token is optional for `Unseal` (the vault accepts unseal requests before
+authentication), but is required for `Seal`.
+
+```go
+cfg := admin.AdminConfig{
+    Address: "https://vault.example.net:8200",
+    Token:   "", // resolved from VAULT_TOKEN, then ~/.vault-token when empty
+}
+```
+
+The same TLS fields and environment fallbacks available on `kv.Config` are
+supported.
+
+---
+
+## kv subpackage
+
+```go
+import "github.com/jeanfrancoisgratton/vaultLib/kv"
+```
+
+The `kv` subpackage handles both KV v1 and KV v2 secret engines. The correct
+API paths are selected automatically by querying `sys/mounts` at client
+construction time. If that query fails (e.g. due to policy restrictions), KV
+v2 is assumed.
+
+All methods have a `Context` variant (e.g. `ReadSecretContext`,
+`WriteSecretContext`) for propagating deadlines and cancellation. The
+non-context versions use `context.Background()`.
 
 ### Read a whole secret
 
-Given a KV v2 mount named `containers` and a secret named `monitoring_apps`:
+Given a KV v2 mount named `containers` and a secret path `monitoring_apps`:
 
 ```go
 package main
@@ -62,40 +139,31 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/reader"
+    "github.com/jeanfrancoisgratton/vaultLib/kv"
 )
 
 func main() {
-    cfg := reader.Config{
+    cfg := kv.Config{
         Address:   "https://vault.example.net:8200",
-        Token:     "",
         MountPath: "containers",
     }
 
-    client, err := reader.NewClient(cfg)
+    client, err := kv.NewClient(cfg)
     if err != nil {
         log.Fatal(err)
     }
 
-    secret, err := client.ReadSecret("monitoring_apps", reader.ReadOptions{})
+    secret, err := client.ReadSecret("monitoring_apps", kv.ReadOptions{})
     if err != nil {
         log.Fatal(err)
     }
 
-    payload, err := json.MarshalIndent(secret.Data, "", "  ")
-    if err != nil {
-        log.Fatal(err)
-    }
-
+    payload, _ := json.MarshalIndent(secret.Data, "", "  ")
     fmt.Println(string(payload))
 }
 ```
 
-This reads from:
-
-```text
-containers/data/monitoring_apps
-```
+This reads from `containers/data/monitoring_apps`.
 
 ### Read one field
 
@@ -111,107 +179,35 @@ if !ok {
 }
 ```
 
-The version argument uses KV v2 semantics:
-
-- `0`: latest version
-- `>0`: explicit version
+The version argument uses KV v2 semantics: `0` means latest, any positive
+integer selects that explicit version. Version is ignored for KV v1.
 
 ### Optional fallback behavior
 
-By default, a read does **not** require access to the KV metadata endpoint.
+By default, a read does not require access to the KV metadata endpoint.
 
-If you explicitly want to recover from a deleted/unavailable latest version by
-reading the newest available non-deleted version, enable fallback:
+If you want to recover from a deleted or unavailable latest version by reading
+the newest non-deleted version instead, enable fallback:
 
 ```go
-secret, err := client.ReadSecret("monitoring_apps", reader.ReadOptions{
+secret, err := client.ReadSecret("monitoring_apps", kv.ReadOptions{
     FallbackToLatestAvailable: true,
 })
 ```
 
-This requires Vault policy access to both paths:
-
-```hcl
-path "containers/data/monitoring_apps" {
-  capabilities = ["read"]
-}
-
-path "containers/metadata/monitoring_apps" {
-  capabilities = ["read"]
-}
-```
-
----
-
-## Writer subpackage
-
-The `writer` subpackage supports creating, modifying, and removing KV secrets.
-It handles both KV v1 and KV v2 engines transparently: the correct API paths
-are selected automatically by querying `sys/mounts` at client construction
-time. If that query fails (e.g. due to policy restrictions), KV v2 is assumed.
-
-```go
-import "github.com/jeanfrancoisgratton/vaultLib/writer"
-```
-
-All methods have a `Context` variant (e.g. `WriteSecretContext`) for
-propagating deadlines and cancellation. The non-context versions use
-`context.Background()`.
-
-### Required Vault policies
-
-Write operations require broader permissions than reads. The minimum policy for
-the examples in this section, using a KV v2 mount named `containers`:
-
-```hcl
-path "containers/data/*" {
-  capabilities = ["create", "update"]
-}
-
-path "containers/metadata/*" {
-  capabilities = ["read", "delete", "list"]
-}
-
-path "containers/delete/*" {
-  capabilities = ["update"]
-}
-
-path "containers/destroy/*" {
-  capabilities = ["update"]
-}
-```
-
-For KV version detection, the token also needs:
-
-```hcl
-path "sys/mounts/containers" {
-  capabilities = ["read"]
-}
-```
-
-If this path is not accessible the library silently defaults to KV v2, so the
-`sys/mounts` permission is optional.
+This requires policy access to both the data and metadata paths. See
+[Required Vault policies](#required-vault-policies).
 
 ### Write a full secret
 
-Creates the secret if it does not exist; for KV v2 each call produces a new
-version.
+Creates the secret if it does not exist. For KV v2 each call produces a new
+version; for KV v1 the secret is overwritten in place.
 
 ```go
-cfg := writer.Config{
-    Address:   "https://vault.example.net:8200",
-    MountPath: "containers",
-}
-
-client, err := writer.NewClient(cfg)
-if err != nil {
-    log.Fatal(err)
-}
-
 result, err := client.WriteSecret("monitoring_apps", map[string]interface{}{
     "grafana_password": "s3cr3t",
     "alertmanager_url": "http://alertmanager:9093",
-}, writer.WriteOptions{})
+}, kv.WriteOptions{})
 if err != nil {
     log.Fatal(err)
 }
@@ -219,20 +215,16 @@ if err != nil {
 fmt.Printf("wrote version %d\n", result.Version)
 ```
 
-For KV v2 this writes to:
+For KV v2 this writes to `containers/data/monitoring_apps`.
 
-```text
-containers/data/monitoring_apps
-```
-
-#### Check-And-Set (KV v2)
+### Check-And-Set (KV v2)
 
 Pass `EnableCAS: true` to prevent overwriting a concurrently modified secret.
-`CASVersion` must match the current version; set it to `0` to require that the
-secret does not yet exist.
+`CASVersion` must match the current version number. Set it to `0` to require
+that the secret does not yet exist.
 
 ```go
-result, err := client.WriteSecret("monitoring_apps", data, writer.WriteOptions{
+result, err := client.WriteSecret("monitoring_apps", data, kv.WriteOptions{
     EnableCAS:  true,
     CASVersion: 3, // secret must currently be at version 3
 })
@@ -240,9 +232,9 @@ result, err := client.WriteSecret("monitoring_apps", data, writer.WriteOptions{
 
 ### Write a single field
 
-Adds or overwrites one field while preserving all other fields. If the secret
-does not exist it is created with only the supplied field. For KV v2 this
-produces a new version.
+Adds or overwrites one field while preserving all others. If the secret does
+not exist it is created with only the supplied field. For KV v2 this produces a
+new version.
 
 ```go
 result, err := client.WriteSecretField("monitoring_apps", "grafana_password", "newpassword")
@@ -251,8 +243,7 @@ if err != nil {
 }
 ```
 
-This is a read-modify-write operation. See [Consistency note](#consistency-note)
-below.
+This is a read-modify-write operation. See [Consistency note](#consistency-note).
 
 ### Delete a single field
 
@@ -273,9 +264,10 @@ This is also a read-modify-write operation.
 
 Permanently erases a secret and all its data.
 
-For KV v2 this deletes the metadata path, which removes every version and the
-path itself in a single irreversible operation. Use `DestroySecret` if you only
-want to permanently remove a specific version while keeping the path.
+For KV v2 this deletes the metadata path, removing every version and the path
+itself in a single irreversible operation. Use `DestroySecret` if you only want
+to permanently remove a specific version while keeping the path and remaining
+versions intact.
 
 ```go
 err := client.DeleteSecret("monitoring_apps")
@@ -287,31 +279,24 @@ if err != nil {
 ### Destroy a specific version (KV v2)
 
 Permanently destroys a single version. The secret path and any other versions
-are left intact. `opts.Version` selects the version; `0` destroys the latest
-version.
+are left intact. `opts.Version` selects the version; `0` destroys the latest.
 
 ```go
 // Destroy version 2 explicitly.
-err := client.DestroySecret("monitoring_apps", writer.DestroyOptions{Version: 2})
+err := client.DestroySecret("monitoring_apps", kv.DestroyOptions{Version: 2})
 
 // Destroy the latest version.
-err = client.DestroySecret("monitoring_apps", writer.DestroyOptions{})
+err = client.DestroySecret("monitoring_apps", kv.DestroyOptions{})
 ```
 
-For KV v1, which has no versioning, `DestroySecret` behaves like `DeleteSecret`
-and `opts.Version` is ignored.
-
-This writes to:
-
-```text
-containers/destroy/monitoring_apps
-```
+For KV v1, which has no versioning, `DestroySecret` behaves identically to
+`DeleteSecret` and `opts.Version` is ignored.
 
 ### Update an existing field
 
-Checks that the field already exists and returns an error if it does not. If
-the field is present, writes a new version with the updated value while
-preserving all other fields.
+Checks that the field already exists before writing. Returns an error if the
+field is absent, leaving the secret unchanged. If the field is present it
+writes a new version with the updated value while preserving all other fields.
 
 Use this when you want a strict update that must not create a new field
 accidentally. Use `WriteSecretField` when an upsert (create-or-update) is
@@ -320,32 +305,8 @@ acceptable.
 ```go
 result, err := client.UpdateSecretField("monitoring_apps", "grafana_password", "rotatedpassword")
 if err != nil {
-    // err is non-nil when the field does not exist, the secret does not
-    // exist, or Vault returns an error.
     log.Fatal(err)
 }
-```
-
-### Consistency note
-
-`WriteSecretField`, `DeleteSecretField`, and `UpdateSecretField` are all
-read-modify-write operations. A concurrent write between the read and the write
-steps will silently win. If strict consistency is required, read the secret
-yourself, check the version, and call `WriteSecret` with `EnableCAS` and the
-version you read:
-
-```go
-secret, err := readerClient.ReadSecret("monitoring_apps", reader.ReadOptions{})
-if err != nil {
-    log.Fatal(err)
-}
-
-secret.Data["grafana_password"] = "rotatedpassword"
-
-result, err := writerClient.WriteSecret("monitoring_apps", secret.Data, writer.WriteOptions{
-    EnableCAS:  true,
-    CASVersion: secret.Version,
-})
 ```
 
 ### KV engine version
@@ -354,20 +315,193 @@ Call `KVVersion()` on a constructed client to inspect which engine version was
 detected:
 
 ```go
-client, _ := writer.NewClient(cfg)
+client, _ := kv.NewClient(cfg)
 fmt.Printf("KV engine version: %d\n", client.KVVersion())
+```
+
+### Consistency note
+
+`WriteSecretField`, `DeleteSecretField`, and `UpdateSecretField` are all
+read-modify-write operations. A concurrent write between the internal read and
+write steps will silently win. If strict consistency is required, read the
+secret yourself, check the version, and call `WriteSecret` with `EnableCAS`:
+
+```go
+secret, err := client.ReadSecret("monitoring_apps", kv.ReadOptions{})
+if err != nil {
+    log.Fatal(err)
+}
+
+secret.Data["grafana_password"] = "rotatedpassword"
+
+result, err := client.WriteSecret("monitoring_apps", secret.Data, kv.WriteOptions{
+    EnableCAS:  true,
+    CASVersion: secret.Version,
+})
+```
+
+### Required Vault policies
+
+Minimum policy for a KV v2 mount named `containers`:
+
+```hcl
+# Read operations
+path "containers/data/monitoring_apps" {
+  capabilities = ["read"]
+}
+
+# Required only when FallbackToLatestAvailable is enabled
+path "containers/metadata/monitoring_apps" {
+  capabilities = ["read"]
+}
+
+# Write operations
+path "containers/data/*" {
+  capabilities = ["create", "update"]
+}
+
+path "containers/metadata/*" {
+  capabilities = ["read", "delete", "list"]
+}
+
+path "containers/delete/*" {
+  capabilities = ["update"]
+}
+
+path "containers/destroy/*" {
+  capabilities = ["update"]
+}
+
+# Optional: KV engine version detection at client construction
+path "sys/mounts/containers" {
+  capabilities = ["read"]
+}
+```
+
+If the `sys/mounts` path is not accessible the library silently defaults to
+KV v2, so that permission is optional.
+
+### Error handling
+
+All errors carry context about the operation that failed:
+
+| Condition                   | Error message contains                                  |
+|-----------------------------|---------------------------------------------------------|
+| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault is sealed`    |
+| Network failure             | `vault service unreachable`                             |
+| Invalid token / policy      | `invalid Vault token or insufficient policy`            |
+| CAS mismatch                | `check CAS version or KV engine configuration`          |
+| Rate limit                  | `vault rate limit exceeded`                             |
+| Secret / path not found     | `secret path does not exist or is unauthorized`         |
+
+---
+
+## admin subpackage
+
+```go
+import "github.com/jeanfrancoisgratton/vaultLib/admin"
+```
+
+The `admin` subpackage targets the Vault system API. It currently provides
+`Unseal` and `Seal`. Both methods have a `Context` variant for deadline and
+cancellation propagation.
+
+### Unseal
+
+Submits each key to the unseal endpoint in order, stopping as soon as the
+vault reports it is open. Each submission produces one `UnsealResult` entry
+so the caller can observe progress toward the threshold.
+
+If the vault is already unsealed when `Unseal` is called, a single result with
+`Sealed: false` is returned immediately without submitting any keys.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/jeanfrancoisgratton/vaultLib/admin"
+)
+
+func main() {
+    cfg := admin.AdminConfig{
+        Address: "https://vault.example.net:8200",
+    }
+
+    keys := []string{
+        "key-share-1",
+        "key-share-2",
+        "key-share-3",
+    }
+
+    results, err := admin.Unseal(cfg, keys)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, r := range results {
+        fmt.Printf("key %d applied — progress: %d/%d sealed: %v\n",
+            r.KeyIndex, r.Progress, r.Threshold, r.Sealed)
+    }
+}
+```
+
+`UnsealResult` fields:
+
+| Field       | Description                                                                    |
+|-------------|--------------------------------------------------------------------------------|
+| `KeyIndex`  | Zero-based index of the key in the input slice. `-1` means no key was needed.  |
+| `Sealed`    | Whether the vault is still sealed after this key was applied.                  |
+| `Progress`  | Number of key shares accepted so far toward the threshold.                     |
+| `Threshold` | Total number of key shares required to unseal.                                 |
+
+### Seal
+
+Activates the Vault seal via `sys/seal`. The vault immediately stops serving
+secret requests once sealed. Calling `Seal` on an already-sealed vault returns
+nil.
+
+`Seal` requires a token with `sudo` capability on `sys/seal`.
+
+```go
+cfg := admin.AdminConfig{
+    Address: "https://vault.example.net:8200",
+    Token:   "your-root-or-admin-token",
+}
+
+client, err := admin.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+if err := client.Seal(); err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("vault is sealed")
+```
+
+### Required Vault policies
+
+```hcl
+# Unseal — no token required; Vault accepts these before authentication.
+# No policy entry needed.
+
+# Seal
+path "sys/seal" {
+  capabilities = ["update", "sudo"]
+}
 ```
 
 ### Error handling
 
-All writer errors carry context about the operation that failed. Errors from a
-sealed vault, network failures, and policy violations are reported distinctly:
-
-| Condition                   | Error message contains                                     |
-|-----------------------------|------------------------------------------------------------|
-| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault is sealed`       |
-| Network failure             | `vault service unreachable`                                |
-| Invalid token / policy      | `invalid Vault token or insufficient policy`               |
-| CAS mismatch                | `check CAS version or KV engine configuration`             |
-| Rate limit                  | `vault rate limit exceeded`                                |
-| Secret / path not found     | `secret path does not exist or is unauthorized`            |
+| Condition              | Error message contains                          |
+|------------------------|-------------------------------------------------|
+| Network failure        | `vault service unreachable`                     |
+| Invalid token / policy | `unauthorized — check token and namespace`      |
+| Invalid key format     | `invalid unseal key format`                     |
+| Rate limit             | `vault rate limit exceeded`                     |
+| Vault unavailable      | `vault is unavailable`                          |
+| Vault sealed (non-HTTP)| `vault is sealed`                               |

@@ -1,9 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: reader/read.go
-// Original timestamp: 2026/04/23 14:34:20
+// Original filename: kv/read.go
 
-package reader
+package kv
 
 import (
 	"context"
@@ -18,13 +17,13 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-// ReadSecret reads a Vault KV v2 secret. It does not read KV metadata unless
-// FallbackToLatestAvailable is explicitly enabled.
+// ReadSecret reads a Vault KV secret. It supports both KV v1 and KV v2; the
+// engine version is detected automatically at client construction time.
 func (c *Client) ReadSecret(secretPath string, opts ReadOptions) (*Secret, error) {
 	return c.ReadSecretContext(context.Background(), secretPath, opts)
 }
 
-// ReadSecretContext reads a Vault KV v2 secret using the supplied context.
+// ReadSecretContext reads a Vault KV secret using the supplied context.
 func (c *Client) ReadSecretContext(ctx context.Context, secretPath string, opts ReadOptions) (*Secret, error) {
 	if c == nil || c.client == nil {
 		return nil, fmt.Errorf("vault client is nil")
@@ -38,16 +37,26 @@ func (c *Client) ReadSecretContext(ctx context.Context, secretPath string, opts 
 		return nil, fmt.Errorf("invalid secret path: secret path cannot be empty")
 	}
 
-	dataPath := fmt.Sprintf("%s/data/%s", c.cfg.MountPath, path)
 	requestedVersion := opts.Version
 	actualVersion := 0
 
-	secret, err := c.readKVData(ctx, dataPath, opts.Version)
+	var (
+		secret *api.Secret
+		err    error
+	)
+
+	if c.kvVersion == 1 {
+		apiPath := fmt.Sprintf("%s/%s", c.cfg.MountPath, path)
+		secret, err = c.client.Logical().ReadWithContext(ctx, apiPath)
+	} else {
+		dataPath := fmt.Sprintf("%s/data/%s", c.cfg.MountPath, path)
+		secret, err = c.readKVv2Data(ctx, dataPath, opts.Version)
+	}
 	if err != nil {
 		return nil, classifyReadError(err, false)
 	}
 
-	if secret == nil && opts.Version == 0 && opts.FallbackToLatestAvailable {
+	if secret == nil && c.kvVersion == 2 && opts.Version == 0 && opts.FallbackToLatestAvailable {
 		fallbackVersion, err := c.findLatestAvailableVersion(ctx, path)
 		if err != nil {
 			return nil, err
@@ -56,7 +65,8 @@ func (c *Client) ReadSecretContext(ctx context.Context, secretPath string, opts 
 			return nil, fmt.Errorf("read secret failed: no non-deleted secret version is available for %q", path)
 		}
 
-		secret, err = c.readKVData(ctx, dataPath, fallbackVersion)
+		dataPath := fmt.Sprintf("%s/data/%s", c.cfg.MountPath, path)
+		secret, err = c.readKVv2Data(ctx, dataPath, fallbackVersion)
 		if err != nil {
 			return nil, classifyReadError(err, false)
 		}
@@ -67,6 +77,17 @@ func (c *Client) ReadSecretContext(ctx context.Context, secretPath string, opts 
 		return nil, fmt.Errorf("read secret failed: secret %q was not found or the requested version is deleted", path)
 	}
 
+	// KV v1: data lives directly at secret.Data.
+	if c.kvVersion == 1 {
+		return &Secret{
+			MountPath:        c.cfg.MountPath,
+			Path:             path,
+			RequestedVersion: requestedVersion,
+			Data:             secret.Data,
+		}, nil
+	}
+
+	// KV v2: data is nested under secret.Data["data"].
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("read secret failed: secret format is invalid")
@@ -88,13 +109,13 @@ func (c *Client) ReadSecretContext(ctx context.Context, secretPath string, opts 
 	}, nil
 }
 
-// ReadSecretField reads a single field from a Vault KV v2 secret. Version 0
-// means latest.
+// ReadSecretField reads a single field from a Vault KV secret. Version 0
+// means latest. Version is ignored for KV v1.
 func (c *Client) ReadSecretField(secretPath, field string, version int) (interface{}, error) {
 	return c.ReadSecretFieldContext(context.Background(), secretPath, field, version)
 }
 
-// ReadSecretFieldContext reads a single field from a Vault KV v2 secret using
+// ReadSecretFieldContext reads a single field from a Vault KV secret using
 // the supplied context. Version 0 means latest.
 func (c *Client) ReadSecretFieldContext(ctx context.Context, secretPath, field string, version int) (interface{}, error) {
 	field = strings.TrimSpace(field)
@@ -124,7 +145,7 @@ func validateReadOptions(opts ReadOptions) error {
 	return nil
 }
 
-func (c *Client) readKVData(ctx context.Context, dataPath string, version int) (*api.Secret, error) {
+func (c *Client) readKVv2Data(ctx context.Context, dataPath string, version int) (*api.Secret, error) {
 	if version > 0 {
 		return c.client.Logical().ReadWithDataWithContext(ctx, dataPath, map[string][]string{
 			"version": {strconv.Itoa(version)},
@@ -218,7 +239,7 @@ func classifyReadError(err error, metadataPhase bool) error {
 	if responseErr, ok := errors.AsType[*api.ResponseError](err); ok {
 		switch responseErr.StatusCode {
 		case http.StatusBadRequest:
-			return fmt.Errorf("vault rejected the KV v2 read request: %w", err)
+			return fmt.Errorf("vault rejected the KV read request: %w", err)
 		case http.StatusForbidden, http.StatusUnauthorized:
 			return fmt.Errorf("invalid Vault token or unauthorized: %w", err)
 		case http.StatusNotFound:

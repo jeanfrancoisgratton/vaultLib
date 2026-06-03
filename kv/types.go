@@ -1,9 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: writer/types.go
-// Original timestamp: 2026/05/22 09:00:00
+// Original filename: kv/types.go
 
-package writer
+package kv
 
 import (
 	"github.com/hashicorp/vault/api"
@@ -11,8 +10,30 @@ import (
 )
 
 // Config is re-exported from shared so client applications can import only the
-// writer package without an additional shared import.
+// kv package without an additional shared import.
 type Config = shared.Config
+
+// ReadOptions controls KV v2 read behavior.
+type ReadOptions struct {
+	// Version selects a specific KV v2 version. Version 0 means "latest".
+	Version int `json:"version,omitempty"`
+
+	// FallbackToLatestAvailable makes a latest-version read recover from a nil
+	// latest read by inspecting KV metadata and reading the newest version that is
+	// neither soft-deleted nor destroyed. This requires read permission on the KV
+	// metadata path. It is disabled by default to avoid surprising policy
+	// requirements and silent fallback behavior.
+	FallbackToLatestAvailable bool `json:"fallback_to_latest_available,omitempty"`
+}
+
+// Secret is the normalized representation of a Vault KV secret read.
+type Secret struct {
+	MountPath        string                 `json:"mountPath"`
+	Path             string                 `json:"path"`
+	RequestedVersion int                    `json:"requestedVersion,omitempty"`
+	Version          int                    `json:"version,omitempty"`
+	Data             map[string]interface{} `json:"data"`
+}
 
 // WriteOptions controls KV secret write behavior.
 type WriteOptions struct {
@@ -52,9 +73,10 @@ type WriteResult struct {
 	Version int `json:"version,omitempty"`
 }
 
-// Client is a Vault KV writer. It supports both KV v1 and KV v2 secret engines
-// and selects the correct API paths automatically based on the mount's
-// configuration detected at construction time.
+// Client is a Vault KV client that supports both reading and writing. It
+// handles KV v1 and KV v2 secret engines and selects the correct API paths
+// automatically based on the mount's configuration detected at construction
+// time.
 type Client struct {
 	cfg       shared.Config
 	client    *api.Client

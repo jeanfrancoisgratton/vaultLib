@@ -1,9 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: writer/write.go
-// Original timestamp: 2026/05/22 09:00:00
+// Original filename: kv/write.go
 
-package writer
+package kv
 
 import (
 	"context"
@@ -250,8 +249,7 @@ func (c *Client) UpdateSecretField(secretPath, field string, value interface{}) 
 	return c.UpdateSecretFieldContext(context.Background(), secretPath, field, value)
 }
 
-// UpdateSecretFieldContext checks and updates a field using the supplied
-// context.
+// UpdateSecretFieldContext checks and updates a field using the supplied context.
 func (c *Client) UpdateSecretFieldContext(ctx context.Context, secretPath, field string, value interface{}) (*WriteResult, error) {
 	if c == nil || c.client == nil {
 		return nil, fmt.Errorf("vault client is nil")
@@ -280,6 +278,10 @@ func (c *Client) UpdateSecretFieldContext(ctx context.Context, secretPath, field
 	data[field] = value
 	return c.WriteSecretContext(ctx, path, data, WriteOptions{})
 }
+
+// -------------------------------------------------------------------------
+// Internal helpers
+// -------------------------------------------------------------------------
 
 // readCurrentData reads the latest data map for the given path. It returns
 // (nil, nil) when the secret does not exist or when its latest version is

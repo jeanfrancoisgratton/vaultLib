@@ -1,9 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: writer/client.go
-// Original timestamp: 2026/05/22 09:00:00
+// Original filename: kv/client.go
 
-package writer
+package kv
 
 import (
 	"fmt"
@@ -13,10 +12,9 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-// NewClient creates a reusable Vault KV writer client. It automatically
-// detects whether the configured mount is KV v1 or KV v2 by querying
-// sys/mounts. If detection fails (e.g. due to insufficient policy), it
-// defaults to KV v2.
+// NewClient creates a reusable Vault KV client. It automatically detects
+// whether the configured mount is KV v1 or KV v2 by querying sys/mounts. If
+// detection fails (e.g. due to insufficient policy), it defaults to KV v2.
 func NewClient(cfg Config) (*Client, error) {
 	resolved, err := cfg.Resolved()
 	if err != nil {
@@ -66,6 +64,34 @@ func NewClient(cfg Config) (*Client, error) {
 func (c *Client) KVVersion() int {
 	return c.kvVersion
 }
+
+// -------------------------------------------------------------------------
+// One-shot read helpers
+// -------------------------------------------------------------------------
+
+// ReadSecret is a convenience helper for one-shot reads. Reuse NewClient when
+// reading more than once.
+func ReadSecret(cfg Config, secretPath string, opts ReadOptions) (*Secret, error) {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return client.ReadSecret(secretPath, opts)
+}
+
+// ReadSecretField is a convenience helper for one-shot field reads. Version 0
+// means latest.
+func ReadSecretField(cfg Config, secretPath, field string, version int) (interface{}, error) {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return client.ReadSecretField(secretPath, field, version)
+}
+
+// -------------------------------------------------------------------------
+// One-shot write helpers
+// -------------------------------------------------------------------------
 
 // WriteSecret is a convenience helper for one-shot full-secret writes. Reuse
 // NewClient when writing more than once to the same mount.
@@ -122,6 +148,10 @@ func UpdateSecretField(cfg Config, secretPath, field string, value interface{}) 
 	}
 	return client.UpdateSecretField(secretPath, field, value)
 }
+
+// -------------------------------------------------------------------------
+// Internal helpers
+// -------------------------------------------------------------------------
 
 // detectKVVersion queries sys/mounts to determine whether the mount is KV v1
 // or KV v2. It returns 2 if the version cannot be determined.
