@@ -1,6 +1,6 @@
 module github.com/jeanfrancoisgratton/vaultLib
 
-go 1.26.2
+go 1.26.4
 
 require github.com/hashicorp/vault/api v1.23.0
 
@@ -19,7 +19,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
