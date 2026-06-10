@@ -34,7 +34,8 @@ engine reads and writes as well as basic Vault administration (seal/unseal).
 - [admin subpackage](#admin-subpackage)
   - [Unseal](#unseal)
   - [Seal](#seal)
-  - [Required Vault policies](#required-vault-policies-1)
+  - [Seal status](#seal-status)
+  - [Required Vault policies](#required-vault-policies-admin)
   - [Error handling](#error-handling-1)
 
 ---
@@ -483,11 +484,64 @@ if err := client.Seal(); err != nil {
 fmt.Println("vault is sealed")
 ```
 
-### Required Vault policies
+### Seal status
+
+Queries the Vault seal-status endpoint (`GET /v1/sys/seal-status`). **No
+token is required** — this is one of the few unauthenticated Vault endpoints.
+It is useful to discover the unseal threshold (`Threshold`) and total key
+shares (`TotalShares`) before attempting to unseal, or simply to monitor seal
+state.
+
+```go
+cfg := admin.AdminConfig{
+    Address: "https://vault.example.net:8200",
+    // Token is not required for this call.
+}
+
+status, err := admin.GetSealStatus(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("sealed: %v — need %d of %d key shares (progress: %d)\n",
+    status.Sealed, status.Threshold, status.TotalShares, status.Progress)
+```
+
+Or with a reusable client:
+
+```go
+client, err := admin.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+status, err := client.SealStatus()
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+`SealStatusResult` fields:
+
+| Field                | Description                                                                      |
+|----------------------|----------------------------------------------------------------------------------|
+| `Sealed`             | Whether the vault is currently sealed.                                           |
+| `TotalShares`        | Total number of Shamir key shares (`n`) that exist.                              |
+| `Threshold`          | Minimum shares required to unseal (`t`). This is the answer to "how many keys?" |
+| `Progress`           | Key shares applied so far in an in-progress unseal attempt.                      |
+| `Initialized`        | Whether the vault has been initialized.                                          |
+| `ClusterName`        | Human-readable cluster name, if set.                                             |
+| `ClusterID`          | Unique cluster identifier.                                                       |
+| `RecoverySeal`       | Whether recovery seals (e.g. cloud KMS auto-unseal) are enabled.                |
+| `StorageType`        | Storage backend in use (e.g. `raft`, `consul`).                                  |
+| `HCPLinkStatus`      | HCP Link integration status, if configured.                                      |
+| `HCPLinkResourceID`  | HCP resource ID associated with the cluster.                                     |
+
+### Required Vault policies (admin)
 
 ```hcl
-# Unseal — no token required; Vault accepts these before authentication.
-# No policy entry needed.
+# Unseal and SealStatus — no token required; Vault accepts these before
+# authentication. No policy entry needed.
 
 # Seal
 path "sys/seal" {

@@ -49,6 +49,47 @@ type UnsealResult struct {
 	Threshold int `json:"threshold"`
 }
 
+// SealStatusResult holds the normalized response from the Vault seal-status
+// endpoint (GET /v1/sys/seal-status). No token is required to call this
+// endpoint.
+type SealStatusResult struct {
+	// Sealed reports whether the vault is currently sealed.
+	Sealed bool `json:"sealed"`
+
+	// TotalShares is the total number of Shamir key shares (n) that exist.
+	TotalShares int `json:"total_shares"`
+
+	// Threshold is the minimum number of key shares (t) required to unseal.
+	Threshold int `json:"threshold"`
+
+	// Progress is the number of unseal keys applied so far in an in-progress
+	// unseal attempt. Resets to 0 once the vault is successfully unsealed or
+	// when the attempt is abandoned.
+	Progress int `json:"progress"`
+
+	// Initialized reports whether the vault has been initialized.
+	Initialized bool `json:"initialized"`
+
+	// ClusterName is the human-readable name of the Vault cluster, if set.
+	ClusterName string `json:"cluster_name,omitempty"`
+
+	// ClusterID is the unique identifier of the Vault cluster.
+	ClusterID string `json:"cluster_id,omitempty"`
+
+	// RecoverySeal indicates whether recovery seals are enabled (e.g. when
+	// using auto-unseal with a cloud KMS).
+	RecoverySeal bool `json:"recovery_seal"`
+
+	// StorageType reports the storage backend in use (e.g. "raft", "consul").
+	StorageType string `json:"storage_type,omitempty"`
+
+	// HCPLinkStatus is the status of the HCP Link integration, if configured.
+	HCPLinkStatus string `json:"hcp_link_status,omitempty"`
+
+	// HCPLinkResourceID is the HCP resource ID associated with the cluster.
+	HCPLinkResourceID string `json:"hcp_link_resource_id,omitempty"`
+}
+
 // Client is a thin Vault administrative client scoped to system-level
 // operations.
 type Client struct {
