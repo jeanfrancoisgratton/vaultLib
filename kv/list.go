@@ -6,8 +6,10 @@ package kv
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -109,7 +111,19 @@ func (c *Client) secretVersion(ctx context.Context, path string) (int, error) {
 		return int(v), nil
 	case float64:
 		return int(v), nil
+	case json.Number:
+		i, err := strconv.Atoi(v.String())
+		if err != nil {
+			return 0, fmt.Errorf("invalid current_version value %q: %w", v.String(), err)
+		}
+		return i, nil
+	case string:
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return 0, fmt.Errorf("invalid current_version value %q: %w", v, err)
+		}
+		return i, nil
 	}
 
-	return 0, fmt.Errorf("unknown version type")
+	return 0, fmt.Errorf("unknown version type %T", secret.Data["current_version"])
 }
