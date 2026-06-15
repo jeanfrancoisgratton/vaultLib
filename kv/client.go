@@ -149,6 +149,16 @@ func UpdateSecretField(cfg Config, secretPath, field string, value interface{}) 
 	return client.UpdateSecretField(secretPath, field, value)
 }
 
+
+// ListSecrets is a convenience helper for one-shot secret listings.
+func ListSecrets(cfg Config, showVersion bool) ([]SecretInfo, error) {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return client.ListSecrets(showVersion)
+}
+
 // -------------------------------------------------------------------------
 // Internal helpers
 // -------------------------------------------------------------------------

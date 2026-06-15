@@ -35,6 +35,15 @@ type Secret struct {
 	Data             map[string]interface{} `json:"data"`
 }
 
+
+// SecretInfo represents a secret path returned by a recursive list operation.
+type SecretInfo struct {
+	Path string `json:"path"`
+
+	// Version is only populated for KV v2 when requested.
+	Version int `json:"version,omitempty"`
+}
+
 // WriteOptions controls KV secret write behavior.
 type WriteOptions struct {
 	// EnableCAS activates Check-And-Set for KV v2 writes. When true,
