@@ -1,5 +1,6 @@
 | Release | Date       | Comments                                                                                                                                   |
 |---------|------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.4.1   | 2026.06.15 | Fixed error propagation in ListSecrets() that silently swallowed an error and returned secrets at v0                                       |
 | 1.4.0   | 2026.06.15 | Added ListSecrets() to list all secrets in a KV engine, optionally returning the secret version number                                     |
 | 1.3.0   | 2026.06.10 | Added a SealStatus() to get generic info on how the Vault was sealed<br>Used to find out how many key parts are needed to unseal the Vault | 
 | 1.2.0   | 2026.06.03 | Refactored Read() and Write(), added an amdin subpackage, GO version upgrade -> 1.26.4                                                     |

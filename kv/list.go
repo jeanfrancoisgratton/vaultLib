@@ -78,9 +78,10 @@ func (c *Client) walkSecrets(ctx context.Context, prefix string, includeVersion 
 
 		if includeVersion && c.kvVersion == 2 {
 			version, err := c.secretVersion(ctx, fullPath)
-			if err == nil {
-				entry.Version = version
+			if err != nil {
+				return fmt.Errorf("get version for %q failed: %w", fullPath, err)
 			}
+			entry.Version = version
 		}
 
 		*results = append(*results, entry)
