@@ -140,7 +140,8 @@ func validateReadOptions(opts ReadOptions) error {
 		return fmt.Errorf("invalid version: version cannot be negative")
 	}
 	if opts.Version > 0 && opts.FallbackToLatestAvailable {
-		return fmt.Errorf("invalid read options: FallbackToLatestAvailable is only valid when Version is 0")
+		opts.FallbackToLatestAvailable = false
+		//return fmt.Errorf("invalid read options: FallbackToLatestAvailable is only valid when Version is 0")
 	}
 	return nil
 }
