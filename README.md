@@ -25,6 +25,7 @@ engine reads and writes as well as basic Vault administration (seal/unseal).
   - [Write a single field](#write-a-single-field)
   - [Delete a single field](#delete-a-single-field)
   - [Delete a whole secret](#delete-a-whole-secret)
+  - [Soft-delete specific versions (KV v2)](#soft-delete-specific-versions-kv-v2)
   - [Destroy a specific version (KV v2)](#destroy-a-specific-version-kv-v2)
   - [Update an existing field](#update-an-existing-field)
   - [KV engine version](#kv-engine-version)
@@ -276,6 +277,29 @@ if err != nil {
     log.Fatal(err)
 }
 ```
+
+### Soft-delete specific versions (KV v2)
+
+Marks one or more versions as deleted without removing the secret path or any
+other versions. Soft-deleted versions can be recovered with an undelete
+operation (not yet in this library, but available via the Vault API directly).
+`opts.Versions` lists the versions to soft-delete; an empty or nil slice
+soft-deletes the latest version.
+
+```go
+// Soft-delete version 3 only.
+err := client.SoftDeleteSecret("monitoring_apps", kv.DeleteOptions{Versions: []int{3}})
+
+// Soft-delete the latest version.
+err = client.SoftDeleteSecret("monitoring_apps", kv.DeleteOptions{})
+```
+
+For KV v1, which has no versioning, `SoftDeleteSecret` behaves identically to
+`DeleteSecret` and `opts.Versions` is ignored.
+
+This calls `DELETE <mount>/delete/<path>` with `{"versions": [...]}`, which is
+distinct from the metadata-delete that `DeleteSecret` issues. The path and
+remaining versions stay intact.
 
 ### Destroy a specific version (KV v2)
 

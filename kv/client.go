@@ -130,6 +130,17 @@ func DeleteSecret(cfg Config, secretPath string) error {
 	return client.DeleteSecret(secretPath)
 }
 
+// SoftDeleteSecret is a convenience helper for one-shot KV v2 soft-deletes.
+// opts.Versions lists the versions to soft-delete; an empty or nil slice
+// soft-deletes the latest version.
+func SoftDeleteSecret(cfg Config, secretPath string, opts DeleteOptions) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.SoftDeleteSecret(secretPath, opts)
+}
+
 // DestroySecret is a convenience helper for one-shot secret destruction.
 func DestroySecret(cfg Config, secretPath string, opts DestroyOptions) error {
 	client, err := NewClient(cfg)

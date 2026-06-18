@@ -189,6 +189,53 @@ func (c *Client) DeleteSecretContext(ctx context.Context, secretPath string) err
 	return nil
 }
 
+// SoftDeleteSecret performs a KV v2 soft-delete on one or more specific
+// versions of a secret. Soft-deleted versions can be recovered with an
+// undelete operation. opts.Versions lists the versions to soft-delete; an
+// empty or nil slice soft-deletes the latest version.
+//
+// For KV v1, which has no versioning, SoftDeleteSecret behaves like
+// DeleteSecret and opts.Versions is ignored.
+func (c *Client) SoftDeleteSecret(secretPath string, opts DeleteOptions) error {
+	return c.SoftDeleteSecretContext(context.Background(), secretPath, opts)
+}
+
+// SoftDeleteSecretContext soft-deletes secret versions using the supplied context.
+func (c *Client) SoftDeleteSecretContext(ctx context.Context, secretPath string, opts DeleteOptions) error {
+	if c == nil || c.client == nil {
+		return fmt.Errorf("vault client is nil")
+	}
+
+	path := strings.Trim(secretPath, "/")
+	if path == "" {
+		return fmt.Errorf("invalid secret path: secret path cannot be empty")
+	}
+
+	// KV v1 has no versioning; fall back to a full permanent delete.
+	if c.kvVersion == 1 {
+		return c.DeleteSecretContext(ctx, path)
+	}
+
+	versions := opts.Versions
+	if len(versions) == 0 {
+		// No explicit version: soft-delete the latest version.
+		latest, err := c.currentVersion(ctx, path)
+		if err != nil {
+			return err
+		}
+		versions = []int{latest}
+	}
+
+	apiPath := fmt.Sprintf("%s/delete/%s", c.cfg.MountPath, path)
+	body := map[string]interface{}{"versions": versions}
+
+	_, err := c.client.Logical().WriteWithContext(ctx, apiPath, body)
+	if err != nil {
+		return classifyWriteError(err, "soft-delete secret")
+	}
+	return nil
+}
+
 // DestroySecret permanently destroys a specific KV v2 secret version.
 // opts.Version selects the version; a value of 0 destroys the latest version.
 // Unlike DeleteSecret, the secret path and any other versions are left intact.

@@ -1,5 +1,6 @@
 | Release | Date       | Comments                                                                                                                                   |
 |---------|------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.5.0   | 2026.06.18 | Added `SoftDeleteSecret` / `SoftDeleteSecretContext` + one-shot helper; `DeleteOptions.Versions` is now fully implemented                  |
 | 1.4.3   | 2026.06.17 | If a secret version is set, `opts.FallbackToLatestAvailable` has to be set to false in `validateReadOptions()`                             |
 | 1.4.2   | 2026.06.15 | Fixed number representation in version number                                                                                              |
 | 1.4.1   | 2026.06.15 | Fixed error propagation in ListSecrets() that silently swallowed an error and returned secrets at v0                                       |
