@@ -1,8 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: admin/client.go
+// Original filename: sys/client.go
 
-package admin
+package sys
 
 import (
 	"fmt"
@@ -11,11 +11,9 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-// NewClient creates a reusable Vault administrative client. A token is not
-// required for the unseal operation (Vault accepts unseal requests before a
-// token exists), but it is resolved from the environment when present so the
-// same AdminConfig can be used for future authenticated admin calls.
-func NewClient(cfg AdminConfig) (*Client, error) {
+// NewClient creates a reusable Vault client scoped to system-level mount
+// operations.
+func NewClient(cfg Config) (*Client, error) {
 	resolved, err := cfg.Resolved()
 	if err != nil {
 		return nil, err
@@ -59,21 +57,48 @@ func NewClient(cfg AdminConfig) (*Client, error) {
 	return &Client{cfg: resolved, client: apiClient}, nil
 }
 
-// Unseal is a convenience helper for one-shot unseal operations. Reuse
-// NewClient when performing multiple administrative operations.
-func Unseal(cfg AdminConfig, keys []string) ([]UnsealResult, error) {
+// ListMounts is a convenience helper for one-shot mount listings. Reuse
+// NewClient when performing multiple sys operations.
+func ListMounts(cfg Config) ([]MountInfo, error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return client.Unseal(keys)
+	return client.ListMounts()
+}
+
+// EnableKVEngine is a convenience helper for one-shot KV engine creation.
+func EnableKVEngine(cfg Config, path string, opts EnableKVOptions) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.EnableKVEngine(path, opts)
+}
+
+// EditKVEngine is a convenience helper for one-shot KV engine tuning.
+func EditKVEngine(cfg Config, path string, opts EditKVOptions) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.EditKVEngine(path, opts)
+}
+
+// DisableKVEngine is a convenience helper for one-shot KV engine removal.
+func DisableKVEngine(cfg Config, path string) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.DisableKVEngine(path)
 }
 
 // -------------------------------------------------------------------------
 // Internal helpers
 // -------------------------------------------------------------------------
 
-func hasTLSSettings(cfg AdminConfig) bool {
+func hasTLSSettings(cfg Config) bool {
 	return cfg.CACertPath != "" ||
 		cfg.CAPath != "" ||
 		cfg.ClientCertPath != "" ||

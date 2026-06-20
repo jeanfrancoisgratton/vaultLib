@@ -66,6 +66,75 @@ func (c Config) Resolved() (Config, error) {
 	return resolved, nil
 }
 
+// Resolved returns a copy of SystemConfig with connection fields resolved
+// from environment variables and standard Vault client files when they were
+// not set explicitly.
+//
+// Unlike Config.Resolved, a missing Token is not an error here: some
+// operations built on SystemConfig (e.g. admin.SealStatus, admin.Unseal) are
+// unauthenticated by design. Callers whose operation does require a token are
+// left to fail at the API call itself, which returns a clear "unauthorized"
+// error.
+func (c SystemConfig) Resolved() (SystemConfig, error) {
+	resolved := c.trimmed()
+
+	if resolved.Token == "" {
+		resolved.Token = strings.TrimSpace(os.Getenv("VAULT_TOKEN"))
+	}
+	if resolved.Token == "" {
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			data, err := os.ReadFile(filepath.Join(homeDir, ".vault-token"))
+			if err == nil {
+				resolved.Token = strings.TrimSpace(string(data))
+			}
+		}
+	}
+
+	if resolved.Address == "" {
+		resolved.Address = strings.TrimSpace(os.Getenv("VAULT_ADDR"))
+	}
+	if resolved.Address == "" {
+		return SystemConfig{}, fmt.Errorf("vault address is missing: neither SystemConfig.Address nor VAULT_ADDR provided a usable address")
+	}
+
+	if resolved.Namespace == "" {
+		resolved.Namespace = strings.TrimSpace(os.Getenv("VAULT_NAMESPACE"))
+	}
+	if resolved.CACertPath == "" {
+		resolved.CACertPath = strings.TrimSpace(os.Getenv("VAULT_CACERT"))
+	}
+	if resolved.CAPath == "" {
+		resolved.CAPath = strings.TrimSpace(os.Getenv("VAULT_CAPATH"))
+	}
+	if resolved.ClientCertPath == "" {
+		resolved.ClientCertPath = strings.TrimSpace(os.Getenv("VAULT_CLIENT_CERT"))
+	}
+	if resolved.ClientKeyPath == "" {
+		resolved.ClientKeyPath = strings.TrimSpace(os.Getenv("VAULT_CLIENT_KEY"))
+	}
+	if resolved.TLSServerName == "" {
+		resolved.TLSServerName = strings.TrimSpace(os.Getenv("VAULT_TLS_SERVER_NAME"))
+	}
+	if !resolved.TLSSkipVerify {
+		resolved.TLSSkipVerify = envBool("VAULT_SKIP_VERIFY")
+	}
+
+	return resolved, nil
+}
+
+func (c SystemConfig) trimmed() SystemConfig {
+	c.Address = strings.TrimSpace(c.Address)
+	c.Token = strings.TrimSpace(c.Token)
+	c.Namespace = strings.Trim(strings.TrimSpace(c.Namespace), "/")
+	c.CACertPath = strings.TrimSpace(c.CACertPath)
+	c.CAPath = strings.TrimSpace(c.CAPath)
+	c.ClientCertPath = strings.TrimSpace(c.ClientCertPath)
+	c.ClientKeyPath = strings.TrimSpace(c.ClientKeyPath)
+	c.TLSServerName = strings.TrimSpace(c.TLSServerName)
+	return c
+}
+
 func (c Config) trimmed() Config {
 	c.Address = strings.TrimSpace(c.Address)
 	c.Token = strings.TrimSpace(c.Token)

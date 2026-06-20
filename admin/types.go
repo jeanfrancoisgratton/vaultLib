@@ -6,31 +6,22 @@ package admin
 
 import (
 	"github.com/hashicorp/vault/api"
+	"github.com/jeanfrancoisgratton/vaultLib/shared"
 )
 
-// AdminConfig holds the Vault connection settings needed for administrative
-// operations. Unlike kv.Config it does not require a MountPath, since admin
-// operations target the Vault system API rather than a KV engine.
-type AdminConfig struct {
-	Address   string `json:"address"`
-	Token     string `json:"token,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
-
-	// TLS options mirror the common Vault client environment variables.
-	CACertPath     string `json:"ca_cert_path,omitempty"`
-	CAPath         string `json:"ca_path,omitempty"`
-	ClientCertPath string `json:"client_cert_path,omitempty"`
-	ClientKeyPath  string `json:"client_key_path,omitempty"`
-	TLSServerName  string `json:"tls_server_name,omitempty"`
-
-	// TLSSkipVerify disables TLS certificate verification. Should not be used
-	// in production.
-	TLSSkipVerify bool `json:"tls_skip_verify,omitempty"`
-
-	// TimeoutSeconds optionally overrides the Vault API client HTTP timeout.
-	// A value of 0 keeps the Vault API client's default timeout.
-	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
-}
+// AdminConfig is a type alias for shared.SystemConfig. It holds the Vault
+// connection settings needed for administrative operations. Unlike kv.Config
+// it does not require a MountPath, since admin operations target the Vault
+// system API rather than a KV engine.
+//
+// AdminConfig used to be its own struct with its own copy of the
+// environment-resolution logic (token, address, namespace, TLS settings).
+// That logic was promoted to shared.SystemConfig in v1.6.0 so the policies,
+// tokens, and sys subpackages — which are all non-mount-scoped exactly like
+// admin — can reuse it instead of duplicating it a third and fourth time.
+// This is purely an internal change: AdminConfig's fields, JSON tags, and
+// resolution behavior are unchanged, so existing callers are unaffected.
+type AdminConfig = shared.SystemConfig
 
 // UnsealResult is the normalized result of a single unseal key submission.
 type UnsealResult struct {

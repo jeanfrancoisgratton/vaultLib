@@ -7,7 +7,9 @@
 ---
 
 A lightweight HashiCorp Vault library for Go applications, covering KV secret
-engine reads and writes as well as basic Vault administration (seal/unseal).
+engine reads and writes, ACL policy management, token lifecycle operations,
+secrets engine mount management, and basic Vault administration
+(seal/unseal).
 
 ## Table of Contents
 
@@ -15,7 +17,7 @@ engine reads and writes as well as basic Vault administration (seal/unseal).
 - [Package layout](#package-layout)
 - [Configuration](#configuration)
   - [kv.Config](#kvconfig)
-  - [admin.AdminConfig](#adminadminconfig)
+  - [Non-mount-scoped config: admin / policies / tokens / sys](#non-mount-scoped-config-admin--policies--tokens--sys)
 - [kv subpackage](#kv-subpackage)
   - [Read a whole secret](#read-a-whole-secret)
   - [Read one field](#read-one-field)
@@ -38,6 +40,29 @@ engine reads and writes as well as basic Vault administration (seal/unseal).
   - [Seal status](#seal-status)
   - [Required Vault policies](#required-vault-policies-admin)
   - [Error handling](#error-handling-1)
+- [policies subpackage](#policies-subpackage)
+  - [List policies](#list-policies)
+  - [Read a policy](#read-a-policy)
+  - [Create a policy](#create-a-policy)
+  - [Delete a policy](#delete-a-policy)
+  - [Required Vault policies](#required-vault-policies-policies)
+  - [Error handling](#error-handling-2)
+- [tokens subpackage](#tokens-subpackage)
+  - [Create a token](#create-a-token)
+  - [Lookup a token](#lookup-a-token)
+  - [Lookup self](#lookup-self)
+  - [Renew a token](#renew-a-token)
+  - [Revoke a token](#revoke-a-token)
+  - [List accessors](#list-accessors)
+  - [Required Vault policies](#required-vault-policies-tokens)
+  - [Error handling](#error-handling-3)
+- [sys subpackage](#sys-subpackage)
+  - [List mounts](#list-mounts)
+  - [Enable a KV engine](#enable-a-kv-engine)
+  - [Edit a KV engine](#edit-a-kv-engine)
+  - [Disable a KV engine](#disable-a-kv-engine)
+  - [Required Vault policies](#required-vault-policies-sys)
+  - [Error handling](#error-handling-4)
 
 ---
 
@@ -53,13 +78,20 @@ go get github.com/jeanfrancoisgratton/vaultLib
 
 ```
 vaultLib/
-├── shared/   — shared Config type and environment resolution (internal use)
-├── kv/       — KV secret engine: read, write, delete, destroy
-└── admin/    — Vault administration: seal, unseal
+├── shared/    — shared Config/SystemConfig types and environment resolution (internal use)
+├── kv/        — KV secret engine: read, write, delete, destroy
+├── admin/     — Vault administration: seal, unseal, seal status
+├── policies/  — ACL policy management: list, read, create, delete
+├── tokens/    — Token lifecycle: create, lookup, renew, revoke, list accessors
+└── sys/       — Secrets engine mounts: list mounts, enable/edit/disable KV engines
 ```
 
-`shared` is not meant to be imported directly. Both `kv` and `admin` re-export
-the configuration type(s) they need, so you only import the subpackage you use.
+`shared` is not meant to be imported directly. Every subpackage re-exports the
+configuration type it needs as a type alias, so you only import the
+subpackage you use. `admin.AdminConfig`, `policies.Config`, `tokens.Config`,
+and `sys.Config` are all aliases for the same `shared.SystemConfig` type,
+since none of those operations are scoped to a mount — see
+[Non-mount-scoped config](#non-mount-scoped-config-admin--policies--tokens--sys).
 
 ---
 
@@ -95,22 +127,47 @@ Supported environment fallbacks:
 | `TLSServerName`  | `VAULT_TLS_SERVER_NAME`              |
 | `TLSSkipVerify`  | `VAULT_SKIP_VERIFY`                  |
 
-### admin.AdminConfig
+### Non-mount-scoped config: admin / policies / tokens / sys
 
-`admin.AdminConfig` is a separate type scoped to system-level operations. It
-does not have a `MountPath` field since the admin API is not mount-specific.
-A token is optional for `Unseal` (the vault accepts unseal requests before
-authentication), but is required for `Seal`.
+`admin.AdminConfig`, `policies.Config`, `tokens.Config`, and `sys.Config` are
+all type aliases for the same underlying `shared.SystemConfig` type. None of
+them have a `MountPath` field, since policy, token, and mount-management
+operations target Vault's system API rather than a specific KV engine.
+
+A token is optional for `admin.Unseal` and `admin.SealStatus` (the vault
+accepts those calls before authentication), but every policies, tokens, and
+sys operation — and `admin.Seal` — does require one.
 
 ```go
-cfg := admin.AdminConfig{
+cfg := admin.AdminConfig{ // identical shape to policies.Config / tokens.Config / sys.Config
     Address: "https://vault.example.net:8200",
     Token:   "", // resolved from VAULT_TOKEN, then ~/.vault-token when empty
 }
 ```
 
+> **Why one shared type instead of four?** `AdminConfig` was the first
+> non-mount-scoped config type in this library. Rather than copying its
+> environment-resolution logic (token, address, namespace, TLS settings) into
+> `policies`, `tokens`, and `sys` a third and fourth time, that logic was
+> promoted to `shared.SystemConfig` in v1.6.0, and `AdminConfig` became an
+> alias for it. This is purely an internal change — `AdminConfig`'s fields,
+> JSON tags, and resolution behavior are unchanged, so existing callers are
+> unaffected.
+
 The same TLS fields and environment fallbacks available on `kv.Config` are
-supported.
+supported:
+
+| Config field     | Environment fallback                 |
+|------------------|--------------------------------------|
+| `Token`          | `VAULT_TOKEN`, then `~/.vault-token` |
+| `Address`        | `VAULT_ADDR`                         |
+| `Namespace`      | `VAULT_NAMESPACE`                    |
+| `CACertPath`     | `VAULT_CACERT`                       |
+| `CAPath`         | `VAULT_CAPATH`                       |
+| `ClientCertPath` | `VAULT_CLIENT_CERT`                  |
+| `ClientKeyPath`  | `VAULT_CLIENT_KEY`                   |
+| `TLSServerName`  | `VAULT_TLS_SERVER_NAME`              |
+| `TLSSkipVerify`  | `VAULT_SKIP_VERIFY`                  |
 
 ---
 
@@ -580,6 +637,427 @@ path "sys/seal" {
 | Network failure        | `vault service unreachable`                     |
 | Invalid token / policy | `unauthorized — check token and namespace`      |
 | Invalid key format     | `invalid unseal key format`                     |
-| Rate limit             | `vault rate limit exceeded`                     |
+| Rate limit              | `vault rate limit exceeded`                     |
 | Vault unavailable      | `vault is unavailable`                          |
 | Vault sealed (non-HTTP)| `vault is sealed`                               |
+
+---
+
+## policies subpackage
+
+```go
+import "github.com/jeanfrancoisgratton/vaultLib/policies"
+```
+
+The `policies` subpackage manages Vault ACL policies via `sys/policies/acl`.
+All methods have a `Context` variant for deadline and cancellation
+propagation.
+
+### List policies
+
+Returns every policy name, including the built-in `default` and `root`
+policies.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/jeanfrancoisgratton/vaultLib/policies"
+)
+
+func main() {
+    cfg := policies.Config{
+        Address: "https://vault.example.net:8200",
+        Token:   "your-token",
+    }
+
+    names, err := policies.ListPolicies(cfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, name := range names {
+        fmt.Println(name)
+    }
+}
+```
+
+### Read a policy
+
+```go
+client, err := policies.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+policy, err := client.ReadPolicy("monitoring-readonly")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(policy.Rules)
+```
+
+Vault's underlying `GetPolicy` call returns an empty string with a `nil`
+error when a policy doesn't exist, rather than a 404 — this is the same kind
+of non-obvious behavior already handled specially for KV `LIST` calls.
+`ReadPolicy` turns that empty result into an explicit
+`policy "..." does not exist` error so callers don't have to special-case it.
+
+### Create a policy
+
+```go
+rules := `
+path "containers/data/monitoring_apps" {
+  capabilities = ["read"]
+}
+`
+
+if err := client.CreatePolicy("monitoring-readonly", rules); err != nil {
+    log.Fatal(err)
+}
+```
+
+Vault's policy write endpoint has no separate create-vs-update verb: this is
+an upsert, exactly like the underlying API. Callers that need strict
+create-only semantics should call `ReadPolicy` first and check for a
+not-found error.
+
+### Delete a policy
+
+```go
+if err := client.DeletePolicy("monitoring-readonly"); err != nil {
+    log.Fatal(err)
+}
+```
+
+Vault itself refuses to delete the built-in `default` and `root` policies;
+`DeletePolicy` does not duplicate that guard client-side and simply surfaces
+Vault's rejection.
+
+### Required Vault policies (policies)
+
+```hcl
+path "sys/policies/acl" {
+  capabilities = ["list"]
+}
+
+path "sys/policies/acl/*" {
+  capabilities = ["read", "create", "update", "delete"]
+}
+```
+
+### Error handling
+
+| Condition              | Error message contains                                       |
+|-------------------------|---------------------------------------------------------------|
+| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault service unreachable` |
+| Invalid token / policy  | `invalid Vault token or insufficient policy`                  |
+| Policy not found        | `policy does not exist`                                       |
+| Rate limit              | `vault rate limit exceeded`                                   |
+
+---
+
+## tokens subpackage
+
+```go
+import "github.com/jeanfrancoisgratton/vaultLib/tokens"
+```
+
+The `tokens` subpackage manages Vault tokens via `auth/token`. All methods
+have a `Context` variant for deadline and cancellation propagation.
+
+### Create a token
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/jeanfrancoisgratton/vaultLib/tokens"
+)
+
+func main() {
+    cfg := tokens.Config{
+        Address: "https://vault.example.net:8200",
+        Token:   "your-token",
+    }
+
+    client, err := tokens.NewClient(cfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    renewable := true
+    auth, err := client.CreateToken(tokens.CreateOptions{
+        Policies:    []string{"monitoring-readonly"},
+        TTL:         "1h",
+        DisplayName: "monitoring-agent",
+        Renewable:   &renewable,
+        Orphan:      true,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println(auth.ClientToken)
+}
+```
+
+If `CreateOptions.RoleName` is set, the token is created against
+`auth/token/create/<role>` instead, which takes precedence over `Orphan`
+since a role's own constraints govern the result. Otherwise `Orphan` selects
+between `auth/token/create-orphan` and `auth/token/create`.
+
+`CreateOptions.Renewable` is a `*bool` rather than a plain `bool`, so a token
+can be created without forcing a renewable value either way and instead
+deferring to Vault's own default — the same `nil`-means-unset preference used
+by `kv.WriteOptions.EnableCAS` for `CASVersion`.
+
+### Lookup a token
+
+```go
+info, err := client.LookupToken(someTokenValue)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("policies: %v, ttl: %ds\n", info.Policies, info.TTL)
+```
+
+### Lookup self
+
+Looks up the token currently configured on the client (`Config.Token`).
+
+```go
+self, err := client.LookupSelf()
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(self.DisplayName)
+```
+
+### Renew a token
+
+`increment` is the requested TTL increment in seconds; Vault treats it as
+advisory and may return a shorter lease than requested. `0` lets Vault pick
+its own increment.
+
+```go
+auth, err := client.RenewToken(someTokenValue, 3600)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("lease_duration: %ds\n", auth.LeaseDuration)
+```
+
+### Revoke a token
+
+```go
+if err := client.RevokeToken(someTokenValue); err != nil {
+    log.Fatal(err)
+}
+```
+
+This revokes the full lease/child-token tree under the token (Vault's
+`RevokeTree`), not just the token itself — revoking a token near the root of
+a tree is therefore broader than revoking that one token alone.
+
+### List accessors
+
+```go
+accessors, err := client.ListAccessors()
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, accessor := range accessors {
+    fmt.Println(accessor)
+}
+```
+
+There is no dedicated SDK helper for this on Vault's `TokenAuth` type, so
+`ListAccessors` calls `LIST auth/token/accessors` directly via `Logical()` —
+the same approach `kv.ListSecrets` uses for KV listings. As with KV listings,
+a 404 from Vault (meaning "no accessors yet") is treated as zero accessors,
+not an error.
+
+### Required Vault policies (tokens)
+
+```hcl
+path "auth/token/create" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/create-orphan" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/create/*" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/lookup" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+
+path "auth/token/renew" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/revoke" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/accessors" {
+  capabilities = ["list"]
+}
+```
+
+### Error handling
+
+| Condition                    | Error message contains                                       |
+|-------------------------------|---------------------------------------------------------------|
+| Vault sealed or unreachable   | `vault is sealed or unavailable` / `vault service unreachable` |
+| Invalid token / policy        | `invalid Vault token or insufficient policy`                  |
+| Token / accessor not found    | `token or accessor does not exist`                             |
+| Rate limit                    | `vault rate limit exceeded`                                   |
+
+---
+
+## sys subpackage
+
+```go
+import "github.com/jeanfrancoisgratton/vaultLib/sys"
+```
+
+The `sys` subpackage manages secrets engine mounts via `sys/mounts`. All
+methods have a `Context` variant for deadline and cancellation propagation.
+
+### List mounts
+
+Returns every secret engine mount in Vault, not only KV engines.
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/jeanfrancoisgratton/vaultLib/sys"
+)
+
+func main() {
+    cfg := sys.Config{
+        Address: "https://vault.example.net:8200",
+        Token:   "your-token",
+    }
+
+    mounts, err := sys.ListMounts(cfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, m := range mounts {
+        if m.Type == "kv" {
+            fmt.Printf("%s (kv v%s)\n", m.Path, m.KVVersion)
+            continue
+        }
+        fmt.Printf("%s (%s)\n", m.Path, m.Type)
+    }
+}
+```
+
+`MountInfo.KVVersion` is populated only for `kv`-type mounts, parsed from
+`Options["version"]`; it is empty for every other engine type.
+
+### Enable a KV engine
+
+```go
+client, err := sys.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+err = client.EnableKVEngine("monitoring", sys.EnableKVOptions{
+    Version:     2,
+    Description: "monitoring stack secrets",
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+`Version` defaults to `2` when left at `0`, matching `vault secrets enable
+kv`'s own default.
+
+### Edit a KV engine
+
+Tunes lease TTLs, listing visibility, and similar mount-level settings.
+Fields left `nil` in `EditKVOptions` are left unchanged on the mount — the
+same `nil`-means-unset preference used by `kv.WriteOptions.EnableCAS`.
+
+```go
+description := "monitoring stack secrets (rotated quarterly)"
+ttl := "720h"
+
+err = client.EditKVEngine("monitoring", sys.EditKVOptions{
+    Description:     &description,
+    DefaultLeaseTTL: &ttl,
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Disable a KV engine
+
+```go
+if err := client.DisableKVEngine("monitoring"); err != nil {
+    log.Fatal(err)
+}
+```
+
+This is irreversible: every secret stored under the mount, across all
+versions, is destroyed along with it.
+
+`EditKVEngine` and `DisableKVEngine` both confirm the target mount is
+actually a `kv`-type engine before acting on it. Vault's underlying tune and
+unmount calls are generic to any mount type, so without this pre-flight
+check a typo'd or misremembered path could silently tune or unmount an
+unrelated engine (e.g. database, pki) that happens to share the same generic
+endpoint with KV.
+
+### Required Vault policies (sys)
+
+```hcl
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+path "sys/mounts/*" {
+  capabilities = ["read", "create", "update", "delete"]
+}
+```
+
+### Error handling
+
+| Condition                  | Error message contains                                       |
+|------------------------------|---------------------------------------------------------------|
+| Vault sealed or unreachable  | `vault is sealed or unavailable` / `vault service unreachable` |
+| Invalid token / policy       | `invalid Vault token or insufficient policy`                  |
+| Mount not found              | `mount does not exist`                                        |
+| Mount type mismatch          | `not a kv engine`                                              |
+| Rate limit                   | `vault rate limit exceeded`                                   |

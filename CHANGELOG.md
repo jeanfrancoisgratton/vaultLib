@@ -1,5 +1,6 @@
 | Release | Date       | Comments                                                                                                                                   |
 |---------|------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.6.0   | 2026.06.20 | Added `policies`, `tokens`, and `sys` subpackages (policy CRUD; token create/lookup/lookup-self/renew/revoke/list-accessors; mount listing + KV engine enable/edit/disable). Internal refactor: promoted `AdminConfig`'s environment-resolution logic to `shared.SystemConfig`; `AdminConfig`, `policies.Config`, `tokens.Config`, and `sys.Config` are now aliases of it (no behavior change for existing `admin` callers) |
 | 1.5.0   | 2026.06.18 | Added `SoftDeleteSecret` / `SoftDeleteSecretContext` + one-shot helper; `DeleteOptions.Versions` is now fully implemented                  |
 | 1.4.3   | 2026.06.17 | If a secret version is set, `opts.FallbackToLatestAvailable` has to be set to false in `validateReadOptions()`                             |
 | 1.4.2   | 2026.06.15 | Fixed number representation in version number                                                                                              |

@@ -1,8 +1,8 @@
 // vaultLib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
-// Original filename: admin/client.go
+// Original filename: policies/client.go
 
-package admin
+package policies
 
 import (
 	"fmt"
@@ -11,11 +11,8 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-// NewClient creates a reusable Vault administrative client. A token is not
-// required for the unseal operation (Vault accepts unseal requests before a
-// token exists), but it is resolved from the environment when present so the
-// same AdminConfig can be used for future authenticated admin calls.
-func NewClient(cfg AdminConfig) (*Client, error) {
+// NewClient creates a reusable Vault client scoped to ACL policy operations.
+func NewClient(cfg Config) (*Client, error) {
 	resolved, err := cfg.Resolved()
 	if err != nil {
 		return nil, err
@@ -59,21 +56,48 @@ func NewClient(cfg AdminConfig) (*Client, error) {
 	return &Client{cfg: resolved, client: apiClient}, nil
 }
 
-// Unseal is a convenience helper for one-shot unseal operations. Reuse
-// NewClient when performing multiple administrative operations.
-func Unseal(cfg AdminConfig, keys []string) ([]UnsealResult, error) {
+// ListPolicies is a convenience helper for one-shot listings. Reuse NewClient
+// when performing multiple policy operations.
+func ListPolicies(cfg Config) ([]string, error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return client.Unseal(keys)
+	return client.ListPolicies()
+}
+
+// ReadPolicy is a convenience helper for one-shot policy reads.
+func ReadPolicy(cfg Config, name string) (*Policy, error) {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return client.ReadPolicy(name)
+}
+
+// CreatePolicy is a convenience helper for one-shot policy creation.
+func CreatePolicy(cfg Config, name, rules string) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.CreatePolicy(name, rules)
+}
+
+// DeletePolicy is a convenience helper for one-shot policy deletion.
+func DeletePolicy(cfg Config, name string) error {
+	client, err := NewClient(cfg)
+	if err != nil {
+		return err
+	}
+	return client.DeletePolicy(name)
 }
 
 // -------------------------------------------------------------------------
 // Internal helpers
 // -------------------------------------------------------------------------
 
-func hasTLSSettings(cfg AdminConfig) bool {
+func hasTLSSettings(cfg Config) bool {
 	return cfg.CACertPath != "" ||
 		cfg.CAPath != "" ||
 		cfg.ClientCertPath != "" ||
