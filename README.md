@@ -707,6 +707,25 @@ of non-obvious behavior already handled specially for KV `LIST` calls.
 `ReadPolicy` turns that empty result into an explicit
 `policy "..." does not exist` error so callers don't have to special-case it.
 
+`Policy.Rules` is the raw policy document exactly as Vault stores it (HCL or
+JSON), in a single string — that's a faithful mirror of what the Vault API
+returns, not a library limitation. Printing a multi-line `Rules` value
+directly (as above) renders fine, but it can look garbled inside a table
+cell, a log line, or an escaped JSON dump. For those cases, use
+`RuleLines()` to get the document as `[]string`, one entry per line:
+
+```go
+for _, line := range policy.RuleLines() {
+    fmt.Println(line)
+}
+```
+
+`RuleLines()` is a display convenience only — a newline split, nothing
+more. It does not parse HCL/JSON and has no notion of path blocks or
+capabilities, so it can't tell you what a policy grants; `Rules` remains
+the canonical representation (and the one `CreatePolicy` expects back
+unchanged).
+
 ### Create a policy
 
 ```go
