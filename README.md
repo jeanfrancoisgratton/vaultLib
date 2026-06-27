@@ -32,6 +32,8 @@ secrets engine mount management, and basic Vault administration
   - [Update an existing field](#update-an-existing-field)
   - [KV engine version](#kv-engine-version)
   - [Consistency note](#consistency-note)
+  - [Backup a KV engine](#backup-a-kv-engine)
+  - [Restore a KV engine](#restore-a-kv-engine)
   - [Required Vault policies](#required-vault-policies)
   - [Error handling](#error-handling)
 - [admin subpackage](#admin-subpackage)
@@ -422,6 +424,94 @@ result, err := client.WriteSecret("monitoring_apps", secret.Data, kv.WriteOption
 })
 ```
 
+### Backup a KV engine
+
+`BackupEngine` dumps every secret reachable under the configured KV mount to a
+JSON file. For KV v2 mounts only the latest non-deleted version of each secret
+is captured. The file is created if it does not exist and truncated if it does.
+
+```go
+cfg := kv.Config{
+    Address:   "https://vault.example.net:8200",
+    MountPath: "containers",
+}
+
+client, err := kv.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+if err := client.BackupEngine("/var/backups/vault-containers.json"); err != nil {
+    log.Fatal(err)
+}
+```
+
+Or as a one-shot helper:
+
+```go
+if err := kv.BackupEngine(cfg, "/var/backups/vault-containers.json"); err != nil {
+    log.Fatal(err)
+}
+```
+
+The JSON file has the following structure:
+
+```json
+{
+  "mountPath": "containers",
+  "kvVersion": 2,
+  "secrets": [
+    {
+      "path": "monitoring_apps",
+      "version": 4,
+      "data": {
+        "grafana_password": "s3cr3t",
+        "alertmanager_url": "http://alertmanager:9093"
+      }
+    }
+  ]
+}
+```
+
+`version` is informational — it records the version number at backup time for
+KV v2 mounts and is not used during a restore. `mountPath` and `kvVersion`
+are also informational: secrets are always restored to the mount configured on
+the client, not to the one recorded in the file.
+
+### Restore a KV engine
+
+`RestoreEngine` reads a JSON backup file produced by `BackupEngine` and writes
+every secret to the configured KV mount. Existing secrets at the same paths are
+overwritten. For KV v2 each write produces a new version rather than replacing
+version history.
+
+```go
+cfg := kv.Config{
+    Address:   "https://vault.example.net:8200",
+    MountPath: "containers",
+}
+
+client, err := kv.NewClient(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+
+if err := client.RestoreEngine("/var/backups/vault-containers.json"); err != nil {
+    log.Fatal(err)
+}
+```
+
+Or as a one-shot helper:
+
+```go
+if err := kv.RestoreEngine(cfg, "/var/backups/vault-containers.json"); err != nil {
+    log.Fatal(err)
+}
+```
+
+Both `BackupEngineContext` and `RestoreEngineContext` context-aware variants
+are available for deadline and cancellation propagation.
+
 ### Required Vault policies
 
 Minimum policy for a KV v2 mount named `containers`:
@@ -457,6 +547,16 @@ path "containers/destroy/*" {
 # Optional: KV engine version detection at client construction
 path "sys/mounts/containers" {
   capabilities = ["read"]
+}
+
+# BackupEngine: list all paths + read every secret
+path "containers/metadata/*" {
+  capabilities = ["list", "read"]
+}
+
+# RestoreEngine: write (create or overwrite) every secret
+path "containers/data/*" {
+  capabilities = ["create", "update"]
 }
 ```
 

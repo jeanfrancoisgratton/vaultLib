@@ -35,7 +35,6 @@ type Secret struct {
 	Data             map[string]interface{} `json:"data"`
 }
 
-
 // SecretInfo represents a secret path returned by a recursive list operation.
 type SecretInfo struct {
 	Path string `json:"path"`
@@ -90,4 +89,20 @@ type Client struct {
 	cfg       shared.Config
 	client    *api.Client
 	kvVersion int // 1 or 2; detected from sys/mounts on NewClient
+}
+
+// BackupEntry represents one secret path and its data as captured at backup time.
+// Version is populated for KV v2 mounts; it is informational only and is not
+// used during a restore.
+type BackupEntry struct {
+	Path    string                 `json:"path"`
+	Version int                    `json:"version,omitempty"`
+	Data    map[string]interface{} `json:"data"`
+}
+
+// BackupFile is the top-level structure serialized to the JSON backup file.
+type BackupFile struct {
+	MountPath string        `json:"mountPath"`
+	KVVersion int           `json:"kvVersion"`
+	Secrets   []BackupEntry `json:"secrets"`
 }
