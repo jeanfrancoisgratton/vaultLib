@@ -1,6 +1,6 @@
 module github.com/jeanfrancoisgratton/vaultLib
 
-go 1.26.4
+go 1.26
 
 require github.com/hashicorp/vault/api v1.23.0
 

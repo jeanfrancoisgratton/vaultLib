@@ -2,7 +2,7 @@
 
 ---
 
-<img src="./images/vaultLib.jpeg" alt="vault lib logo" height="400" /><br>
+![vault lib logo](images/vaultLib.jpeg)
 
 ---
 
@@ -16,61 +16,61 @@ secrets engine mount management, and basic Vault administration
 - [Install](#install)
 - [Package layout](#package-layout)
 - [Configuration](#configuration)
-  - [kv.Config](#kvconfig)
-  - [Non-mount-scoped config: admin / policies / tokens / sys](#non-mount-scoped-config-admin--policies--tokens--sys)
+  * [kv.Config](#kvconfig)
+  * [Non-mount-scoped config: admin / policies / tokens / sys](#non-mount-scoped-config-admin--policies--tokens--sys)
 - [kv subpackage](#kv-subpackage)
-  - [Read a whole secret](#read-a-whole-secret)
-  - [Read one field](#read-one-field)
-  - [Optional fallback behavior](#optional-fallback-behavior)
-  - [Write a full secret](#write-a-full-secret)
-  - [Check-And-Set (KV v2)](#check-and-set-kv-v2)
-  - [Write a single field](#write-a-single-field)
-  - [Delete a single field](#delete-a-single-field)
-  - [Delete a whole secret](#delete-a-whole-secret)
-  - [Soft-delete specific versions (KV v2)](#soft-delete-specific-versions-kv-v2)
-  - [Destroy a specific version (KV v2)](#destroy-a-specific-version-kv-v2)
-  - [Update an existing field](#update-an-existing-field)
-  - [KV engine version](#kv-engine-version)
-  - [Consistency note](#consistency-note)
-  - [Backup a KV engine](#backup-a-kv-engine)
-  - [Restore a KV engine](#restore-a-kv-engine)
-  - [Required Vault policies](#required-vault-policies)
-  - [Error handling](#error-handling)
+  * [Read a whole secret](#read-a-whole-secret)
+  * [Read one field](#read-one-field)
+  * [Optional fallback behavior](#optional-fallback-behavior)
+  * [Write a full secret](#write-a-full-secret)
+  * [Check-And-Set (KV v2)](#check-and-set-kv-v2)
+  * [Write a single field](#write-a-single-field)
+  * [Delete a single field](#delete-a-single-field)
+  * [Delete a whole secret](#delete-a-whole-secret)
+  * [Soft-delete specific versions (KV v2)](#soft-delete-specific-versions-kv-v2)
+  * [Destroy a specific version (KV v2)](#destroy-a-specific-version-kv-v2)
+  * [Update an existing field](#update-an-existing-field)
+  * [KV engine version](#kv-engine-version)
+  * [Consistency note](#consistency-note)
+  * [Backup a KV engine](#backup-a-kv-engine)
+  * [Restore a KV engine](#restore-a-kv-engine)
+  * [Required Vault policies](#required-vault-policies)
+  * [Error handling](#error-handling)
 - [admin subpackage](#admin-subpackage)
-  - [Unseal](#unseal)
-  - [Seal](#seal)
-  - [Seal status](#seal-status)
-  - [Required Vault policies](#required-vault-policies-admin)
-  - [Error handling](#error-handling-1)
+  * [Unseal](#unseal)
+  * [Seal](#seal)
+  * [Seal status](#seal-status)
+  * [Required Vault policies](#required-vault-policies-admin)
+  * [Error handling](#error-handling-1)
 - [policies subpackage](#policies-subpackage)
-  - [List policies](#list-policies)
-  - [Read a policy](#read-a-policy)
-  - [Create a policy](#create-a-policy)
-  - [Delete a policy](#delete-a-policy)
-  - [Required Vault policies](#required-vault-policies-policies)
-  - [Error handling](#error-handling-2)
+  * [List policies](#list-policies)
+  * [Read a policy](#read-a-policy)
+  * [Create a policy](#create-a-policy)
+  * [Delete a policy](#delete-a-policy)
+  * [Required Vault policies](#required-vault-policies-policies)
+  * [Error handling](#error-handling-2)
 - [tokens subpackage](#tokens-subpackage)
-  - [Create a token](#create-a-token)
-  - [Lookup a token](#lookup-a-token)
-  - [Lookup self](#lookup-self)
-  - [Renew a token](#renew-a-token)
-  - [Revoke a token](#revoke-a-token)
-  - [List accessors](#list-accessors)
-  - [Required Vault policies](#required-vault-policies-tokens)
-  - [Error handling](#error-handling-3)
+  * [Create a token](#create-a-token)
+  * [Lookup a token](#lookup-a-token)
+  * [Lookup self](#lookup-self)
+  * [Renew a token](#renew-a-token)
+  * [Revoke a token](#revoke-a-token)
+  * [List accessors](#list-accessors)
+  * [Required Vault policies](#required-vault-policies-tokens)
+  * [Error handling](#error-handling-3)
 - [sys subpackage](#sys-subpackage)
-  - [List mounts](#list-mounts)
-  - [Enable a KV engine](#enable-a-kv-engine)
-  - [Edit a KV engine](#edit-a-kv-engine)
-  - [Disable a KV engine](#disable-a-kv-engine)
-  - [Required Vault policies](#required-vault-policies-sys)
-  - [Error handling](#error-handling-4)
+  * [List mounts](#list-mounts)
+  * [Enable a KV engine](#enable-a-kv-engine)
+  * [Edit a KV engine](#edit-a-kv-engine)
+  * [Disable a KV engine](#disable-a-kv-engine)
+  * [Required Vault policies](#required-vault-policies-sys)
+  * [Error handling](#error-handling-4)
 
 ---
 
 ## Install
 
-```bash
+```
 go get github.com/jeanfrancoisgratton/vaultLib
 ```
 
@@ -118,7 +118,7 @@ cfg := kv.Config{
 Supported environment fallbacks:
 
 | Config field     | Environment fallback                 |
-|------------------|--------------------------------------|
+| ---------------- | ------------------------------------ |
 | `Token`          | `VAULT_TOKEN`, then `~/.vault-token` |
 | `Address`        | `VAULT_ADDR`                         |
 | `Namespace`      | `VAULT_NAMESPACE`                    |
@@ -160,7 +160,7 @@ The same TLS fields and environment fallbacks available on `kv.Config` are
 supported:
 
 | Config field     | Environment fallback                 |
-|------------------|--------------------------------------|
+| ---------------- | ------------------------------------ |
 | `Token`          | `VAULT_TOKEN`, then `~/.vault-token` |
 | `Address`        | `VAULT_ADDR`                         |
 | `Namespace`      | `VAULT_NAMESPACE`                    |
@@ -247,8 +247,8 @@ integer selects that explicit version. Version is ignored for KV v1.
 
 By default, a read does not require access to the KV metadata endpoint.
 
-If you want to recover from a deleted or unavailable latest version by reading
-the newest non-deleted version instead, enable fallback:
+If you want to recover from a deleted or unavailable latest version by
+reading the newest non-deleted version instead, enable fallback:
 
 ```go
 secret, err := client.ReadSecret("monitoring_apps", kv.ReadOptions{
@@ -294,8 +294,8 @@ result, err := client.WriteSecret("monitoring_apps", data, kv.WriteOptions{
 ### Write a single field
 
 Adds or overwrites one field while preserving all others. If the secret does
-not exist it is created with only the supplied field. For KV v2 this produces a
-new version.
+not exist it is created with only the supplied field. For KV v2 this produces
+a new version.
 
 ```go
 result, err := client.WriteSecretField("monitoring_apps", "grafana_password", "newpassword")
@@ -309,8 +309,8 @@ This is a read-modify-write operation. See [Consistency note](#consistency-note)
 ### Delete a single field
 
 Removes one field from an existing secret. Returns an error if the secret or
-the field does not exist. For KV v2 this produces a new version with the field
-absent.
+the field does not exist. For KV v2 this produces a new version with the
+field absent.
 
 ```go
 result, err := client.DeleteSecretField("monitoring_apps", "alertmanager_url")
@@ -325,10 +325,10 @@ This is also a read-modify-write operation.
 
 Permanently erases a secret and all its data.
 
-For KV v2 this deletes the metadata path, removing every version and the path
-itself in a single irreversible operation. Use `DestroySecret` if you only want
-to permanently remove a specific version while keeping the path and remaining
-versions intact.
+For KV v2 this deletes the metadata path, removing every version and the
+path itself in a single irreversible operation. Use `DestroySecret` if you
+only want to permanently remove a specific version while keeping the path
+and remaining versions intact.
 
 ```go
 err := client.DeleteSecret("monitoring_apps")
@@ -339,11 +339,11 @@ if err != nil {
 
 ### Soft-delete specific versions (KV v2)
 
-Marks one or more versions as deleted without removing the secret path or any
-other versions. Soft-deleted versions can be recovered with an undelete
-operation (not yet in this library, but available via the Vault API directly).
-`opts.Versions` lists the versions to soft-delete; an empty or nil slice
-soft-deletes the latest version.
+Marks one or more versions as deleted without removing the secret path or
+any other versions. Soft-deleted versions can be recovered with an undelete
+operation (not yet in this library, but available via the Vault API
+directly). `opts.Versions` lists the versions to soft-delete; an empty or
+nil slice soft-deletes the latest version.
 
 ```go
 // Soft-delete version 3 only.
@@ -353,17 +353,18 @@ err := client.SoftDeleteSecret("monitoring_apps", kv.DeleteOptions{Versions: []i
 err = client.SoftDeleteSecret("monitoring_apps", kv.DeleteOptions{})
 ```
 
-For KV v1, which has no versioning, `SoftDeleteSecret` behaves identically to
-`DeleteSecret` and `opts.Versions` is ignored.
+For KV v1, which has no versioning, `SoftDeleteSecret` behaves identically
+to `DeleteSecret` and `opts.Versions` is ignored.
 
-This calls `DELETE <mount>/delete/<path>` with `{"versions": [...]}`, which is
-distinct from the metadata-delete that `DeleteSecret` issues. The path and
-remaining versions stay intact.
+This calls `DELETE <mount>/delete/<path>` with `{"versions": [...]}`, which
+is distinct from the metadata-delete that `DeleteSecret` issues. The path
+and remaining versions stay intact.
 
 ### Destroy a specific version (KV v2)
 
-Permanently destroys a single version. The secret path and any other versions
-are left intact. `opts.Version` selects the version; `0` destroys the latest.
+Permanently destroys a single version. The secret path and any other
+versions are left intact. `opts.Version` selects the version; `0` destroys
+the latest.
 
 ```go
 // Destroy version 2 explicitly.
@@ -380,7 +381,8 @@ For KV v1, which has no versioning, `DestroySecret` behaves identically to
 
 Checks that the field already exists before writing. Returns an error if the
 field is absent, leaving the secret unchanged. If the field is present it
-writes a new version with the updated value while preserving all other fields.
+writes a new version with the updated value while preserving all other
+fields.
 
 Use this when you want a strict update that must not create a new field
 accidentally. Use `WriteSecretField` when an upsert (create-or-update) is
@@ -395,8 +397,8 @@ if err != nil {
 
 ### KV engine version
 
-Call `KVVersion()` on a constructed client to inspect which engine version was
-detected:
+Call `KVVersion()` on a constructed client to inspect which engine version
+was detected:
 
 ```go
 client, _ := kv.NewClient(cfg)
@@ -406,9 +408,10 @@ fmt.Printf("KV engine version: %d\n", client.KVVersion())
 ### Consistency note
 
 `WriteSecretField`, `DeleteSecretField`, and `UpdateSecretField` are all
-read-modify-write operations. A concurrent write between the internal read and
-write steps will silently win. If strict consistency is required, read the
-secret yourself, check the version, and call `WriteSecret` with `EnableCAS`:
+read-modify-write operations. A concurrent write between the internal read
+and write steps will silently win. If strict consistency is required, read
+the secret yourself, check the version, and call `WriteSecret` with
+`EnableCAS`:
 
 ```go
 secret, err := client.ReadSecret("monitoring_apps", kv.ReadOptions{})
@@ -426,9 +429,10 @@ result, err := client.WriteSecret("monitoring_apps", secret.Data, kv.WriteOption
 
 ### Backup a KV engine
 
-`BackupEngine` dumps every secret reachable under the configured KV mount to a
-JSON file. For KV v2 mounts only the latest non-deleted version of each secret
-is captured. The file is created if it does not exist and truncated if it does.
+`BackupEngine` dumps every secret reachable under the configured KV mount to
+a JSON file. For KV v2 mounts only the latest non-deleted version of each
+secret is captured. The file is created if it does not exist and truncated
+if it does.
 
 ```go
 cfg := kv.Config{
@@ -473,17 +477,17 @@ The JSON file has the following structure:
 }
 ```
 
-`version` is informational — it records the version number at backup time for
-KV v2 mounts and is not used during a restore. `mountPath` and `kvVersion`
-are also informational: secrets are always restored to the mount configured on
-the client, not to the one recorded in the file.
+`version` is informational — it records the version number at backup time
+for KV v2 mounts and is not used during a restore. `mountPath` and
+`kvVersion` are also informational: secrets are always restored to the mount
+configured on the client, not to the one recorded in the file.
 
 ### Restore a KV engine
 
-`RestoreEngine` reads a JSON backup file produced by `BackupEngine` and writes
-every secret to the configured KV mount. Existing secrets at the same paths are
-overwritten. For KV v2 each write produces a new version rather than replacing
-version history.
+`RestoreEngine` reads a JSON backup file produced by `BackupEngine` and
+writes every secret to the configured KV mount. Existing secrets at the same
+paths are overwritten. For KV v2 each write produces a new version rather
+than replacing version history.
 
 ```go
 cfg := kv.Config{
@@ -567,14 +571,14 @@ KV v2, so that permission is optional.
 
 All errors carry context about the operation that failed:
 
-| Condition                   | Error message contains                                  |
-|-----------------------------|---------------------------------------------------------|
-| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault is sealed`    |
-| Network failure             | `vault service unreachable`                             |
-| Invalid token / policy      | `invalid Vault token or insufficient policy`            |
-| CAS mismatch                | `check CAS version or KV engine configuration`          |
-| Rate limit                  | `vault rate limit exceeded`                             |
-| Secret / path not found     | `secret path does not exist or is unauthorized`         |
+| Condition                   | Error message contains                               |
+| --------------------------- | ----------------------------------------------------- |
+| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault is sealed`  |
+| Network failure             | `vault service unreachable`                           |
+| Invalid token / policy      | `invalid Vault token or insufficient policy`          |
+| CAS mismatch                | `check CAS version or KV engine configuration`        |
+| Rate limit                  | `vault rate limit exceeded`                            |
+| Secret / path not found     | `secret path does not exist or is unauthorized`       |
 
 ---
 
@@ -594,8 +598,8 @@ Submits each key to the unseal endpoint in order, stopping as soon as the
 vault reports it is open. Each submission produces one `UnsealResult` entry
 so the caller can observe progress toward the threshold.
 
-If the vault is already unsealed when `Unseal` is called, a single result with
-`Sealed: false` is returned immediately without submitting any keys.
+If the vault is already unsealed when `Unseal` is called, a single result
+with `Sealed: false` is returned immediately without submitting any keys.
 
 ```go
 package main
@@ -632,18 +636,18 @@ func main() {
 
 `UnsealResult` fields:
 
-| Field       | Description                                                                    |
-|-------------|--------------------------------------------------------------------------------|
-| `KeyIndex`  | Zero-based index of the key in the input slice. `-1` means no key was needed.  |
-| `Sealed`    | Whether the vault is still sealed after this key was applied.                  |
-| `Progress`  | Number of key shares accepted so far toward the threshold.                     |
-| `Threshold` | Total number of key shares required to unseal.                                 |
+| Field       | Description                                                                   |
+| ----------- | ------------------------------------------------------------------------------ |
+| `KeyIndex`  | Zero-based index of the key in the input slice. `-1` means no key was needed. |
+| `Sealed`    | Whether the vault is still sealed after this key was applied.                 |
+| `Progress`  | Number of key shares accepted so far toward the threshold.                    |
+| `Threshold` | Total number of key shares required to unseal.                                |
 
 ### Seal
 
 Activates the Vault seal via `sys/seal`. The vault immediately stops serving
-secret requests once sealed. Calling `Seal` on an already-sealed vault returns
-nil.
+secret requests once sealed. Calling `Seal` on an already-sealed vault
+returns nil.
 
 `Seal` requires a token with `sudo` capability on `sys/seal`.
 
@@ -668,10 +672,10 @@ fmt.Println("vault is sealed")
 ### Seal status
 
 Queries the Vault seal-status endpoint (`GET /v1/sys/seal-status`). **No
-token is required** — this is one of the few unauthenticated Vault endpoints.
-It is useful to discover the unseal threshold (`Threshold`) and total key
-shares (`TotalShares`) before attempting to unseal, or simply to monitor seal
-state.
+token is required** — this is one of the few unauthenticated Vault
+endpoints. It is useful to discover the unseal threshold (`Threshold`) and
+total key shares (`TotalShares`) before attempting to unseal, or simply to
+monitor seal state.
 
 ```go
 cfg := admin.AdminConfig{
@@ -704,19 +708,19 @@ if err != nil {
 
 `SealStatusResult` fields:
 
-| Field                | Description                                                                      |
-|----------------------|----------------------------------------------------------------------------------|
-| `Sealed`             | Whether the vault is currently sealed.                                           |
-| `TotalShares`        | Total number of Shamir key shares (`n`) that exist.                              |
-| `Threshold`          | Minimum shares required to unseal (`t`). This is the answer to "how many keys?" |
-| `Progress`           | Key shares applied so far in an in-progress unseal attempt.                      |
-| `Initialized`        | Whether the vault has been initialized.                                          |
-| `ClusterName`        | Human-readable cluster name, if set.                                             |
-| `ClusterID`          | Unique cluster identifier.                                                       |
-| `RecoverySeal`       | Whether recovery seals (e.g. cloud KMS auto-unseal) are enabled.                |
-| `StorageType`        | Storage backend in use (e.g. `raft`, `consul`).                                  |
-| `HCPLinkStatus`      | HCP Link integration status, if configured.                                      |
-| `HCPLinkResourceID`  | HCP resource ID associated with the cluster.                                     |
+| Field               | Description                                                                     |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `Sealed`            | Whether the vault is currently sealed.                                          |
+| `TotalShares`       | Total number of Shamir key shares (`n`) that exist.                             |
+| `Threshold`         | Minimum shares required to unseal (`t`). This is the answer to "how many keys?" |
+| `Progress`          | Key shares applied so far in an in-progress unseal attempt.                     |
+| `Initialized`       | Whether the vault has been initialized.                                         |
+| `ClusterName`       | Human-readable cluster name, if set.                                            |
+| `ClusterID`         | Unique cluster identifier.                                                      |
+| `RecoverySeal`      | Whether recovery seals (e.g. cloud KMS auto-unseal) are enabled.                |
+| `StorageType`       | Storage backend in use (e.g. `raft`, `consul`).                                 |
+| `HCPLinkStatus`     | HCP Link integration status, if configured.                                     |
+| `HCPLinkResourceID` | HCP resource ID associated with the cluster.                                    |
 
 ### Required Vault policies (admin)
 
@@ -732,14 +736,14 @@ path "sys/seal" {
 
 ### Error handling
 
-| Condition              | Error message contains                          |
-|------------------------|-------------------------------------------------|
-| Network failure        | `vault service unreachable`                     |
-| Invalid token / policy | `unauthorized — check token and namespace`      |
-| Invalid key format     | `invalid unseal key format`                     |
-| Rate limit              | `vault rate limit exceeded`                     |
-| Vault unavailable      | `vault is unavailable`                          |
-| Vault sealed (non-HTTP)| `vault is sealed`                               |
+| Condition               | Error message contains                     |
+| ------------------------ | ------------------------------------------- |
+| Network failure          | `vault service unreachable`                 |
+| Invalid token / policy   | `unauthorized — check token and namespace`  |
+| Invalid key format       | `invalid unseal key format`                 |
+| Rate limit               | `vault rate limit exceeded`                 |
+| Vault unavailable        | `vault is unavailable`                      |
+| Vault sealed (non-HTTP)  | `vault is sealed`                           |
 
 ---
 
@@ -805,7 +809,8 @@ Vault's underlying `GetPolicy` call returns an empty string with a `nil`
 error when a policy doesn't exist, rather than a 404 — this is the same kind
 of non-obvious behavior already handled specially for KV `LIST` calls.
 `ReadPolicy` turns that empty result into an explicit
-`policy "..." does not exist` error so callers don't have to special-case it.
+`policy "..." does not exist` error so callers don't have to special-case
+it.
 
 `Policy.Rules` is the raw policy document exactly as Vault stores it (HCL or
 JSON), in a single string — that's a faithful mirror of what the Vault API
@@ -854,8 +859,8 @@ if err := client.DeletePolicy("monitoring-readonly"); err != nil {
 ```
 
 Vault itself refuses to delete the built-in `default` and `root` policies;
-`DeletePolicy` does not duplicate that guard client-side and simply surfaces
-Vault's rejection.
+`DeletePolicy` does not duplicate that guard client-side and simply
+surfaces Vault's rejection.
 
 ### Required Vault policies (policies)
 
@@ -871,12 +876,12 @@ path "sys/policies/acl/*" {
 
 ### Error handling
 
-| Condition              | Error message contains                                       |
-|-------------------------|---------------------------------------------------------------|
-| Vault sealed or unreachable | `vault is sealed or unavailable` / `vault service unreachable` |
-| Invalid token / policy  | `invalid Vault token or insufficient policy`                  |
-| Policy not found        | `policy does not exist`                                       |
-| Rate limit              | `vault rate limit exceeded`                                   |
+| Condition                   | Error message contains                                         |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Vault sealed or unreachable  | `vault is sealed or unavailable` / `vault service unreachable`  |
+| Invalid token / policy       | `invalid Vault token or insufficient policy`                    |
+| Policy not found             | `policy does not exist`                                          |
+| Rate limit                   | `vault rate limit exceeded`                                      |
 
 ---
 
@@ -933,10 +938,17 @@ If `CreateOptions.RoleName` is set, the token is created against
 since a role's own constraints govern the result. Otherwise `Orphan` selects
 between `auth/token/create-orphan` and `auth/token/create`.
 
-`CreateOptions.Renewable` is a `*bool` rather than a plain `bool`, so a token
-can be created without forcing a renewable value either way and instead
-deferring to Vault's own default — the same `nil`-means-unset preference used
-by `kv.WriteOptions.EnableCAS` for `CASVersion`.
+`CreateOptions.Renewable` is a `*bool` rather than a plain `bool`, so a
+token can be created without forcing a renewable value either way and
+instead deferring to Vault's own default — the same `nil`-means-unset
+preference used by `kv.WriteOptions.EnableCAS` for `CASVersion`.
+
+Vault also restricts which policies a non-privileged caller may request:
+`CreateOptions.Policies` must be a subset of the policies already attached
+to the calling token, unless that token itself has `sudo` (or is root) on
+`auth/token/create`. This is enforced by Vault itself, not by this library
+— if a caller needs to mint tokens with broader policies than its own, the
+policy block below must grant `sudo` on `auth/token/create` as well.
 
 ### Lookup a token
 
@@ -986,8 +998,8 @@ if err := client.RevokeToken(someTokenValue); err != nil {
 ```
 
 This revokes the full lease/child-token tree under the token (Vault's
-`RevokeTree`), not just the token itself — revoking a token near the root of
-a tree is therefore broader than revoking that one token alone.
+`RevokeTree`), not just the token itself — revoking a token near the root
+of a tree is therefore broader than revoking that one token alone.
 
 ### List accessors
 
@@ -1003,10 +1015,17 @@ for _, accessor := range accessors {
 ```
 
 There is no dedicated SDK helper for this on Vault's `TokenAuth` type, so
-`ListAccessors` calls `LIST auth/token/accessors` directly via `Logical()` —
-the same approach `kv.ListSecrets` uses for KV listings. As with KV listings,
-a 404 from Vault (meaning "no accessors yet") is treated as zero accessors,
-not an error.
+`ListAccessors` calls `LIST auth/token/accessors` directly via `Logical()`
+— the same approach `kv.ListSecrets` uses for KV listings. As with KV
+listings, a 404 from Vault (meaning "no accessors yet") is treated as zero
+accessors, not an error.
+
+**This endpoint is root-protected.** Vault requires the `sudo` capability
+on `auth/token/accessors` in addition to `list`, because a full accessor
+listing can be used to look up or revoke every active token in the system
+at once — `list` alone returns `permission denied`. Grant `sudo` deliberately
+and only to callers that genuinely need bulk token visibility (audit
+tooling, an admin reconciliation job), not to routine service tokens.
 
 ### Required Vault policies (tokens)
 
@@ -1039,19 +1058,28 @@ path "auth/token/revoke" {
   capabilities = ["create", "update"]
 }
 
+# ListAccessors: root-protected endpoint — 'list' alone is not sufficient
 path "auth/token/accessors" {
-  capabilities = ["list"]
+  capabilities = ["list", "sudo"]
 }
 ```
 
+`auth/token/create`, `auth/token/create-orphan`, and `auth/token/create/*`
+do **not** need `sudo` for standard use — that's a common misconception.
+`sudo` (or a root token) is only required there to unlock privileged extras:
+attaching policies outside the calling token's own set, setting an explicit
+token ID, or creating namespace-crossing tokens. `auth/token/accessors` is
+the one path in this subpackage that is unconditionally sudo-gated by
+Vault, regardless of what the caller is otherwise allowed to do.
+
 ### Error handling
 
-| Condition                    | Error message contains                                       |
-|-------------------------------|---------------------------------------------------------------|
-| Vault sealed or unreachable   | `vault is sealed or unavailable` / `vault service unreachable` |
-| Invalid token / policy        | `invalid Vault token or insufficient policy`                  |
-| Token / accessor not found    | `token or accessor does not exist`                             |
-| Rate limit                    | `vault rate limit exceeded`                                   |
+| Condition                   | Error message contains                                         |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Vault sealed or unreachable  | `vault is sealed or unavailable` / `vault service unreachable`  |
+| Invalid token / policy       | `invalid Vault token or insufficient policy`                    |
+| Token / accessor not found   | `token or accessor does not exist`                                |
+| Rate limit                   | `vault rate limit exceeded`                                       |
 
 ---
 
@@ -1153,11 +1181,11 @@ This is irreversible: every secret stored under the mount, across all
 versions, is destroyed along with it.
 
 `EditKVEngine` and `DisableKVEngine` both confirm the target mount is
-actually a `kv`-type engine before acting on it. Vault's underlying tune and
-unmount calls are generic to any mount type, so without this pre-flight
-check a typo'd or misremembered path could silently tune or unmount an
-unrelated engine (e.g. database, pki) that happens to share the same generic
-endpoint with KV.
+actually a `kv`-type engine before acting on it. Vault's underlying tune
+and unmount calls are generic to any mount type, so without this
+pre-flight check a typo'd or misremembered path could silently tune or
+unmount an unrelated engine (e.g. database, pki) that happens to share the
+same generic endpoint with KV.
 
 ### Required Vault policies (sys)
 
@@ -1173,10 +1201,10 @@ path "sys/mounts/*" {
 
 ### Error handling
 
-| Condition                  | Error message contains                                       |
-|------------------------------|---------------------------------------------------------------|
-| Vault sealed or unreachable  | `vault is sealed or unavailable` / `vault service unreachable` |
-| Invalid token / policy       | `invalid Vault token or insufficient policy`                  |
-| Mount not found              | `mount does not exist`                                        |
-| Mount type mismatch          | `not a kv engine`                                              |
-| Rate limit                   | `vault rate limit exceeded`                                   |
+| Condition                   | Error message contains                                         |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Vault sealed or unreachable  | `vault is sealed or unavailable` / `vault service unreachable`  |
+| Invalid token / policy       | `invalid Vault token or insufficient policy`                    |
+| Mount not found              | `mount does not exist`                                            |
+| Mount type mismatch          | `not a kv engine`                                                  |
+| Rate limit                   | `vault rate limit exceeded`                                       |
