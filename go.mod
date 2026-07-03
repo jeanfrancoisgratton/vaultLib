@@ -1,4 +1,4 @@
-module github.com/jeanfrancoisgratton/vaultLib
+module github.com/jeanfrancoisgratton/vaultlib/v2
 
 go 1.26
 

@@ -1,4 +1,4 @@
-// vaultLib
+// vaultlib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
 // Original filename: policies/helpers.go
 // Original timestamp: 2026/06/21 17:10:49

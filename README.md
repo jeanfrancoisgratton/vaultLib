@@ -71,15 +71,33 @@ secrets engine mount management, and basic Vault administration
 ## Install
 
 ```
-go get github.com/jeanfrancoisgratton/vaultLib
+go get github.com/jeanfrancoisgratton/vaultlib/v2
 ```
+
+### Migration from v1
+
+If you're upgrading from v1.x, update your imports from the old capitalized module to the new lowercase one:
+
+```go
+// OLD (v1.x)
+import "github.com/jeanfrancoisgratton/vaultLib/admin"
+import "github.com/jeanfrancoisgratton/vaultLib/kv"
+import "github.com/jeanfrancoisgratton/vaultLib/policies"
+
+// NEW (v2.0+)
+import "github.com/jeanfrancoisgratton/vaultlib/v2/admin"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/kv"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/policies"
+```
+
+There are no functional changes—this is purely a naming update to follow Go package naming conventions (lowercase package names). All types, functions, and behavior are identical.
 
 ---
 
 ## Package layout
 
 ```
-vaultLib/
+vaultlib (v2)/
 ├── shared/    — shared Config/SystemConfig types and environment resolution (internal use)
 ├── kv/        — KV secret engine: read, write, delete, destroy
 ├── admin/     — Vault administration: seal, unseal, seal status
@@ -176,7 +194,7 @@ supported:
 ## kv subpackage
 
 ```go
-import "github.com/jeanfrancoisgratton/vaultLib/kv"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/kv"
 ```
 
 The `kv` subpackage handles both KV v1 and KV v2 secret engines. The correct
@@ -200,7 +218,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/kv"
+    "github.com/jeanfrancoisgratton/vaultlib/v2/kv"
 )
 
 func main() {
@@ -585,7 +603,7 @@ All errors carry context about the operation that failed:
 ## admin subpackage
 
 ```go
-import "github.com/jeanfrancoisgratton/vaultLib/admin"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/admin"
 ```
 
 The `admin` subpackage targets the Vault system API. It currently provides
@@ -608,7 +626,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/admin"
+    "github.com/jeanfrancoisgratton/vaultlib/v2/admin"
 )
 
 func main() {
@@ -750,7 +768,7 @@ path "sys/seal" {
 ## policies subpackage
 
 ```go
-import "github.com/jeanfrancoisgratton/vaultLib/policies"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/policies"
 ```
 
 The `policies` subpackage manages Vault ACL policies via `sys/policies/acl`.
@@ -769,7 +787,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/policies"
+    "github.com/jeanfrancoisgratton/vaultlib/v2/policies"
 )
 
 func main() {
@@ -888,7 +906,7 @@ path "sys/policies/acl/*" {
 ## tokens subpackage
 
 ```go
-import "github.com/jeanfrancoisgratton/vaultLib/tokens"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/tokens"
 ```
 
 The `tokens` subpackage manages Vault tokens via `auth/token`. All methods
@@ -903,7 +921,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/tokens"
+    "github.com/jeanfrancoisgratton/vaultlib/v2/tokens"
 )
 
 func main() {
@@ -1086,7 +1104,7 @@ Vault, regardless of what the caller is otherwise allowed to do.
 ## sys subpackage
 
 ```go
-import "github.com/jeanfrancoisgratton/vaultLib/sys"
+import "github.com/jeanfrancoisgratton/vaultlib/v2/sys"
 ```
 
 The `sys` subpackage manages secrets engine mounts via `sys/mounts`. All
@@ -1103,7 +1121,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/jeanfrancoisgratton/vaultLib/sys"
+    "github.com/jeanfrancoisgratton/vaultlib/v2/sys"
 )
 
 func main() {

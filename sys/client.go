@@ -1,4 +1,4 @@
-// vaultLib
+// vaultlib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
 // Original filename: sys/client.go
 

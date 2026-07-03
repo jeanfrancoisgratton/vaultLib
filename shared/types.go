@@ -1,4 +1,4 @@
-// vaultLib
+// vaultlib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
 // Original filename: shared/types.go
 // Original timestamp: 2026/04/23 14:36:13

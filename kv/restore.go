@@ -1,4 +1,4 @@
-// vaultLib
+// vaultlib
 // Written by J.F.Gratton <jean-francois@famillegratton.net>
 // Original filename: kv/restore.go
 // Original timestamp: 2026/06/27 16:19:41
