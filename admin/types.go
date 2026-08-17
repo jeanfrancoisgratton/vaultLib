@@ -6,7 +6,7 @@ package admin
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/jeanfrancoisgratton/vaultLib/shared"
+	"github.com/jeanfrancoisgratton/vaultlib/v2/shared"
 )
 
 // AdminConfig is a type alias for shared.SystemConfig. It holds the Vault

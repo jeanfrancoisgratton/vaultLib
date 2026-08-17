@@ -6,7 +6,7 @@ package tokens
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/jeanfrancoisgratton/vaultLib/shared"
+	"github.com/jeanfrancoisgratton/vaultlib/v2/shared"
 )
 
 // Config is a type alias for shared.SystemConfig. Token operations target

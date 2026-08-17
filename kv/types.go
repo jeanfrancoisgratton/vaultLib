@@ -6,7 +6,7 @@ package kv
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/jeanfrancoisgratton/vaultLib/shared"
+	"github.com/jeanfrancoisgratton/vaultlib/v2/shared"
 )
 
 // Config is re-exported from shared so client applications can import only the
